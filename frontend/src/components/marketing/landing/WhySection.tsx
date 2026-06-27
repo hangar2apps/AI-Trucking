@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
+import { MARKET_SURVEY_URL } from "@/lib/brand";
 
 const pillars = [
   {
@@ -41,8 +41,6 @@ const pillars = [
 ];
 
 export function WhySection() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
-
   return (
     <section id="about" className="scroll-mt-20 bg-white py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -92,14 +90,15 @@ export function WhySection() {
         </div>
 
         <div className="mt-10 text-center">
-          <button
-            type="button"
-            onClick={openSurvey}
+          <a
+            href={MARKET_SURVEY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm font-medium text-[#0B5FFF] hover:underline"
           >
-            Tell us about your fleet — 4 min survey
+            Tell us about your fleet — market survey
             <ArrowRight className="h-4 w-4" />
-          </button>
+          </a>
         </div>
       </div>
     </section>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MARKET_SURVEY_URL } from "@/lib/brand";
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
 
 const updates = [
   {
@@ -24,8 +23,6 @@ const updates = [
 ];
 
 export function ResourcesSection() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
-
   return (
     <section className="bg-[#0F172A] py-16 text-white sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -41,9 +38,10 @@ export function ResourcesSection() {
         </p>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-2">
-          <button
-            type="button"
-            onClick={openSurvey}
+          <a
+            href={MARKET_SURVEY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="overflow-hidden rounded-2xl border border-white/10 bg-[#1E293B] text-left transition-colors hover:border-[#0B5FFF]/40"
           >
             <div
@@ -56,14 +54,14 @@ export function ResourcesSection() {
             <div className="p-6">
               <span className="text-xs font-medium text-[#93C5FD]">● Featured</span>
               <h3 className="mt-2 text-xl font-semibold">
-                Help us validate the product — 4–5 minute survey
+                Help us validate the product — market survey
               </h3>
               <p className="mt-2 text-sm text-white/60">
                 Fleet operators only. Honest answers welcome — including &quot;I&apos;d never
                 use this.&quot;
               </p>
             </div>
-          </button>
+          </a>
 
           <div className="flex flex-col gap-4">
             {updates.map((item) => (

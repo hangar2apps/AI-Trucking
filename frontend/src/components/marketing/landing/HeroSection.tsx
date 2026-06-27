@@ -1,10 +1,6 @@
-"use client";
-
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
+import { MARKET_SURVEY_URL } from "@/lib/brand";
 
 export function HeroSection() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
-
   return (
     <section className="bg-[#0F172A] text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-12 lg:py-24 lg:px-8">
@@ -17,13 +13,14 @@ export function HeroSection() {
             platform built to scale.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={openSurvey}
+            <a
+              href={MARKET_SURVEY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#0F172A] hover:bg-white/90"
             >
               Take the survey
-            </button>
+            </a>
             <a
               href="/demo"
               className="rounded-full border border-white/60 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"

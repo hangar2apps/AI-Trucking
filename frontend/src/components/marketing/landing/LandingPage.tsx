@@ -9,6 +9,8 @@ import { LandingNavbar } from "./LandingNavbar";
 import { LogoBarSection } from "./LogoBarSection";
 import { ProvenResultsSection } from "./ProvenResultsSection";
 import { ResourcesSection } from "./ResourcesSection";
+import { ServicesSection } from "./ServicesSection";
+import { UseCasesSection } from "./UseCasesSection";
 import { WhySection } from "./WhySection";
 import { PricingModal } from "./PricingModal";
 import { SurveyPopupHost } from "@/components/survey/SurveyPopupHost";
@@ -24,6 +26,8 @@ export function LandingPage() {
         <HeroSection />
         <LogoBarSection />
         <WhySection />
+        <UseCasesSection />
+        <ServicesSection />
         <ProvenResultsSection />
         <IndustryLeaderSection />
         <ResourcesSection />
