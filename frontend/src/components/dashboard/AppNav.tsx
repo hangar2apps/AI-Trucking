@@ -66,6 +66,11 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
+  const operationsAvailable = user?.operationsAvailable ?? false;
+
+  const visibleNav = operationsAvailable
+    ? navItems
+    : [{ href: "/app/welcome", icon: LayoutDashboard, label: "Setup" }];
 
   return (
     <div className="flex h-full flex-col">
@@ -73,7 +78,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
         <Logo href="/app" showTagline size="md" />
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => (
+        {visibleNav.map((item) => (
           <NavLink key={item.href} {...item} pathname={pathname} onNavigate={onNavigate} />
         ))}
       </nav>
@@ -117,14 +122,19 @@ export function AppSidebar() {
 
 export function AppHeader() {
   const pathname = usePathname();
+  const operationsAvailable = useAuthStore((s) => s.user?.operationsAvailable ?? false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const titleItems = operationsAvailable
+    ? navItems
+    : [{ href: "/app/welcome", label: "Setup" }];
+
   const pageTitle =
-    navItems.find((i) =>
+    titleItems.find((i) =>
       i.href === "/app"
         ? pathname === "/app" || pathname.startsWith("/app/loads/")
         : pathname === i.href || pathname.startsWith(`${i.href}/`)
-    )?.label ?? "Dashboard";
+    )?.label ?? (operationsAvailable ? "Dashboard" : "Setup");
 
   return (
     <>

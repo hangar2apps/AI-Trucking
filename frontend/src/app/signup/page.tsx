@@ -26,7 +26,7 @@ export default function SignupPage() {
       setError(result.error ?? "Sign up failed");
       return;
     }
-    router.replace("/app");
+    router.replace("/app/welcome");
   };
 
   return (
@@ -38,7 +38,8 @@ export default function SignupPage() {
         <div className="w-full max-w-md rounded-2xl border border-[#E5E7EB] bg-white p-8 shadow-sm">
           <h1 className="text-2xl font-bold text-[#1A2B4A]">Create account</h1>
           <p className="mt-2 text-sm text-[#6B7280]">
-            Sign up to access the dashboard, fleet intelligence, and AI assistant.
+            Create your account. Live fleet data and analytics unlock once your operations are
+            provisioned — you&apos;ll start on a setup page, not the full dashboard.
           </p>
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>

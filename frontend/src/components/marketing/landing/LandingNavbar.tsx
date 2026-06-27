@@ -4,10 +4,8 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { usePricingPopupStore } from "@/stores/pricing-popup-store";
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
 
 export function LandingNavbar() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
   const openPricing = usePricingPopupStore((s) => s.open);
 
   return (
@@ -15,30 +13,28 @@ export function LandingNavbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Logo href="/" size="md" />
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-6 lg:gap-8 md:flex">
           <Link
             href="#about"
             className="text-sm font-medium text-[#374151] hover:text-[#0B5FFF]"
           >
             About
           </Link>
-          <button
-            type="button"
-            onClick={openSurvey}
+          <Link
+            href="#usecases"
             className="text-sm font-medium text-[#374151] hover:text-[#0B5FFF]"
           >
-            Survey
-          </button>
+            Use cases
+          </Link>
+          <Link
+            href="#services"
+            className="text-sm font-medium text-[#374151] hover:text-[#0B5FFF]"
+          >
+            Services
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={openSurvey}
-            className="text-sm font-medium text-[#374151] hover:text-[#0B5FFF] md:hidden"
-          >
-            Survey
-          </button>
           <Link
             href="/login"
             className="hidden text-sm font-medium text-[#374151] hover:text-[#0B5FFF] sm:inline"

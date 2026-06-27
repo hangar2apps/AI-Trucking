@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
+import { MARKET_SURVEY_URL } from "@/lib/brand";
 
 const stats = [
   {
@@ -49,8 +49,6 @@ const launchGoals = [
 ];
 
 export function ProvenResultsSection() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
-
   return (
     <section className="bg-white py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -85,14 +83,15 @@ export function ProvenResultsSection() {
         </div>
 
         <div className="mt-10 flex justify-center">
-          <button
-            type="button"
-            onClick={openSurvey}
+          <a
+            href={MARKET_SURVEY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full bg-[#0B5FFF] px-6 py-3 text-sm font-medium text-white hover:bg-[#0847CC]"
           >
             Join early access
             <ArrowRight className="h-4 w-4" />
-          </button>
+          </a>
         </div>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
