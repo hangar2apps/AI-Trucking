@@ -2249,23 +2249,37 @@ const weatherRouting = {
   activeKey: null,
   baselineMiles: 0,
   radarLayer: null,
-  truckMarker: null,
-  truckSeverity: null,
-  truckProgress: 0.04,
+  fleetMarkers: {},
   lastTruckPos: null,
   avoided: 0,
   lastTick: 0,
   clock: 0,
+  lastScore: 0,
   lastReroute: -999,
   rerouteFlashUntil: 0,
   lastRadarDraw: 0,
   wasShowing: null,
-  follow: false,
+  followId: null,
   followZoom: 8,
   lastFollowAt: 0,
   followHoldUntil: 0,
   dom: null,
 };
+
+// Fleet shown on the weather map. The first is the auto-rerouting "weather-optimized"
+// unit (follows the safest lane); the rest run fixed corridors. All are clickable.
+const wxFleet = [
+  { id: "WX-1", load: "Weather-optimized", driver: "Auto-router", trailer: "Reroute engine", eta: "2:48 PM CT", speed: 58, tone: "cyan", homeLane: "central", offset: 0.05, riskWeight: 1.0, distWeight: 0.25, optimized: true },
+  { id: "L-9402", load: "Auto Parts", driver: "Marcus Vance", trailer: "53 ft dry van", eta: "2:52 PM CT", speed: 55, tone: "blue", homeLane: "central", offset: 0.42, riskWeight: 0.7, distWeight: 0.6 },
+  { id: "L-9448", load: "Rescue Trailer", driver: "Priya Shah", trailer: "53 ft dry van", eta: "3:10 PM CT", speed: 61, tone: "silver", homeLane: "north", offset: 0.66, riskWeight: 0.45, distWeight: 1.0 },
+  { id: "L-9403", load: "Electronics", driver: "Sam Ortiz", trailer: "53 ft reefer", eta: "4:05 PM CT", speed: 52, tone: "silver", homeLane: "south", offset: 0.28, riskWeight: 1.0, distWeight: 0.35 },
+  { id: "L-9399", load: "Aerospace", driver: "Dana Lee", trailer: "53 ft dry van", eta: "1:40 PM CT", speed: 47, tone: "green", homeLane: "north", offset: 0.8, riskWeight: 0.6, distWeight: 0.85 },
+];
+
+const truckTonePalette = { cyan: "#38d3dc", blue: "#2f87ff", green: "#55dc7a", silver: "#cdd7e2", amber: "#f6b64a", rose: "#ff718b" };
+function truckTone(tone) {
+  return truckTonePalette[tone] || truckTonePalette.blue;
+}
 
 const weatherBounds = { minLng: -100, maxLng: -85, minLat: 32, maxLat: 44 };
 
@@ -2331,6 +2345,7 @@ const hazardPalette = {
   flood: { rgb: [58, 142, 208], glyph: "FLOOD" },
   wildfire: { rgb: [239, 106, 58], glyph: "FIRE" },
   ice: { rgb: [159, 214, 230], glyph: "ICE" },
+  storm: { rgb: [178, 104, 230], glyph: "STORM" },
 };
 
 function advanceWeather(dt, elapsed) {
@@ -2346,7 +2361,7 @@ function advanceWeather(dt, elapsed) {
 }
 
 function advanceHazards(dt, elapsed) {
-  weatherRouting.hazards.forEach((hazard, index) => {
+  activeHazards().forEach((hazard, index) => {
     hazard.lng += (hazard.vlng || 0) * dt;
     hazard.lat += (hazard.vlat || 0) * dt;
     // Gentle pulsing so the disaster zones feel alive (quakes/fires flicker more).
@@ -2355,7 +2370,13 @@ function advanceHazards(dt, elapsed) {
   });
 }
 
+// Active hazard set: real NWS alerts + USGS quakes when live, otherwise the simulation.
+function activeHazards() {
+  return liveWeather.status.alerts || liveWeather.status.quakes ? liveWeather.realHazards : weatherRouting.hazards;
+}
+
 function weatherIntensityAt(point) {
+  if (liveWeather.status.precip && liveWeather.precipGrid) return samplePrecipGrid(point);
   let max = 0;
   for (const cell of weatherRouting.cells) {
     const distance = haversineKm(point, [cell.lng, cell.lat]);
@@ -2367,9 +2388,23 @@ function weatherIntensityAt(point) {
   return max;
 }
 
+function samplePrecipGrid(point) {
+  const influenceKm = 240;
+  let max = 0;
+  for (const node of liveWeather.precipGrid) {
+    if (!node.p) continue;
+    const distance = haversineKm(point, [node.lng, node.lat]);
+    if (distance >= influenceKm) continue;
+    const falloff = 1 - distance / influenceKm;
+    const value = node.p * falloff * falloff * (3 - 2 * falloff);
+    if (value > max) max = value;
+  }
+  return max;
+}
+
 function hazardIntensityAt(point) {
   let max = 0;
-  for (const hazard of weatherRouting.hazards) {
+  for (const hazard of activeHazards()) {
     const distance = haversineKm(point, [hazard.lng, hazard.lat]);
     if (distance >= hazard.radiusKm) continue;
     const falloff = 1 - distance / hazard.radiusKm;
@@ -2379,9 +2414,10 @@ function hazardIntensityAt(point) {
   return max;
 }
 
-// Combined danger from live weather and geological/natural-disaster hazards.
+// Combined danger from live weather, geological/natural-disaster hazards, and
+// road incidents (accidents / closures / jams).
 function riskAt(point) {
-  return Math.max(weatherIntensityAt(point), hazardIntensityAt(point));
+  return Math.max(weatherIntensityAt(point), hazardIntensityAt(point), accidentIntensityAt(point));
 }
 
 function densifyLngLat(via, perSegment = 18) {
@@ -2417,13 +2453,55 @@ function scoreLane(points) {
   return average + peak * 1.7;
 }
 
-function weatherTruckIcon(severity) {
+function fleetTruckIcon(truck, severity) {
+  const color = truckTone(truck.tone);
+  const ring = severity === "severe" ? "#ff5d6c" : severity === "watch" ? "#f6b64a" : color;
+  const svg = `<svg viewBox="0 0 50 26" width="44" height="23" aria-hidden="true">
+      <rect x="1" y="6" width="30" height="13" rx="2" fill="${color}"/>
+      <rect x="31" y="9" width="11" height="10" rx="2" fill="${color}"/>
+      <rect x="33" y="10.5" width="6" height="4.6" rx="1" fill="#0a1418" opacity="0.7"/>
+      <circle cx="11" cy="21" r="3.4" fill="#0a0d10"/><circle cx="11" cy="21" r="1.4" fill="#9fb0bd"/>
+      <circle cx="36" cy="21" r="3.4" fill="#0a0d10"/><circle cx="36" cy="21" r="1.4" fill="#9fb0bd"/>
+    </svg>`;
   return L.divIcon({
     className: "leaflet-truck-icon",
-    html: `<div class="wx-truck ${severity}"><span class="wx-truck-pin"></span><span class="wx-truck-label"><strong>WX-1</strong><em>Weather-optimized</em></span></div>`,
-    iconSize: [176, 46],
-    iconAnchor: [13, 23],
+    html: `<div class="wx-fleet ${truck.optimized ? "optimized" : ""} sev-${severity}" style="--truck:${color};--ring:${ring}"><span class="wx-fleet-rig">${svg}</span><span class="wx-fleet-tag">${truck.id}</span></div>`,
+    iconSize: [96, 46],
+    iconAnchor: [48, 13],
   });
+}
+
+function truckPopupHtml(truck) {
+  const laneKey = truck._lane || truck.homeLane;
+  const lane = weatherRouting.lanes.find((entry) => entry.key === laneKey);
+  const sev = truck._sev || "clear";
+  const risk = sev === "severe" ? "Severe — rerouting" : sev === "watch" ? "Elevated risk" : "Clear conditions";
+  return `<div class="truck-popup">
+      <div class="truck-popup-head"><strong>${truck.id}</strong><span class="truck-popup-sev ${sev}">${risk}</span></div>
+      <div class="truck-popup-grid">
+        <span>Load</span><b>${truck.load}</b>
+        <span>Driver</span><b>${truck.driver}</b>
+        <span>Trailer</span><b>${truck.trailer}</b>
+        <span>Lane</span><b>${lane ? lane.label : "&mdash;"}</b>
+        <span>Speed</span><b>${truck.speed} mph</b>
+        <span>ETA</span><b>${truck.eta}</b>
+      </div>
+      ${truck.optimized ? '<div class="truck-popup-note">Auto-rerouting around weather, disasters &amp; accidents</div>' : ""}
+    </div>`;
+}
+
+function handleTruckClick(truck) {
+  if (!weatherRoutingShowing()) return;
+  weatherRouting.followId = truck.id;
+  updateFollowButton();
+  const marker = weatherRouting.fleetMarkers[truck.id];
+  if (marker) {
+    marker.setPopupContent(truckPopupHtml(truck));
+    marker.openPopup();
+  }
+  const pos = truck._pos || weatherRouting.lastTruckPos || cities.oklahomaCity;
+  mapObjects.map.flyTo(latLng(pos), Math.max(mapObjects.map.getZoom(), weatherRouting.followZoom), { duration: 1.0 });
+  weatherRouting.followHoldUntil = performance.now() + 1250;
 }
 
 function createRadarLayer() {
@@ -2449,9 +2527,12 @@ function createRadarLayer() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const clock = weatherRouting.clock;
     // Geological / natural-disaster hazard zones sit beneath the precipitation.
-    weatherRouting.hazards.forEach((hazard) => drawHazardZone(ctx, map, canvas, hazard, clock));
-    // Animated, multi-lobe precipitation cells on top.
-    weatherRouting.cells.forEach((cell) => drawStormCell(ctx, map, canvas, cell, clock));
+    activeHazards().forEach((hazard) => drawHazardZone(ctx, map, canvas, hazard, clock));
+    // Simulated precipitation lobes are only drawn as a fallback; when the real RainViewer
+    // radar tile layer is live it provides the precipitation visual instead.
+    if (!liveWeather.status.radar) {
+      weatherRouting.cells.forEach((cell) => drawStormCell(ctx, map, canvas, cell, clock));
+    }
     ctx.globalCompositeOperation = "source-over";
   }
 
@@ -2661,14 +2742,8 @@ function setupWeatherRouting() {
   weatherRouting.hazards = createHazards();
   weatherRouting.hazards.forEach((hazard) => {
     hazard.intensity = hazard.severity;
-    hazard.marker = L.marker(latLng([hazard.lng, hazard.lat]), {
-      icon: hazardLabelIcon(hazard),
-      interactive: false,
-      opacity: 0,
-      zIndexOffset: 500,
-    }).addTo(mapObjects.map);
-    weatherRouting.hazardLabels.push(hazard.marker);
   });
+  renderHazardLabels(weatherRouting.hazards);
 
   weatherRouting.lanes = weatherLaneDefs.map((def) => {
     const points = densifyLngLat(def.via, 18);
@@ -2685,14 +2760,21 @@ function setupWeatherRouting() {
   weatherRouting.baselineMiles = Math.min(...weatherRouting.lanes.map((lane) => lane.miles));
   weatherRouting.activeKey = "central";
 
-  weatherRouting.truckMarker = L.marker(latLng(cities.oklahomaCity), {
-    icon: weatherTruckIcon("clear"),
-    interactive: true,
-    zIndexOffset: 700,
-    opacity: 0,
-  }).addTo(mapObjects.map);
-  weatherRouting.truckMarker.on("click", toggleWeatherFollow);
-  weatherRouting.truckSeverity = "clear";
+  weatherRouting.fleetMarkers = {};
+  wxFleet.forEach((truck) => {
+    truck._sev = "clear";
+    truck._lane = truck.homeLane;
+    const marker = L.marker(latLng(cities.oklahomaCity), {
+      icon: fleetTruckIcon(truck, "clear"),
+      interactive: true,
+      zIndexOffset: truck.optimized ? 720 : 680,
+      opacity: 0,
+      riseOnHover: true,
+    }).addTo(mapObjects.map);
+    marker.bindPopup(truckPopupHtml(truck), { className: "truck-popup-wrap", closeButton: true, autoPan: false, offset: [0, -8] });
+    marker.on("click", () => handleTruckClick(truck));
+    weatherRouting.fleetMarkers[truck.id] = marker;
+  });
 
   weatherRouting.radarLayer = createRadarLayer();
 
@@ -2706,23 +2788,28 @@ function setupWeatherRouting() {
     legend: document.getElementById("radarLegend"),
     toggle: document.getElementById("weatherToggle"),
     follow: document.getElementById("wxFollow"),
+    source: document.getElementById("wxSource"),
   };
 
   weatherRouting.ready = true;
   applyWeatherVisibility();
+  initLiveWeather();
+  initTraffic();
 }
 
 function toggleWeatherFollow() {
   if (!weatherRouting.ready || !weatherRoutingShowing()) return;
-  weatherRouting.follow = !weatherRouting.follow;
-  if (weatherRouting.follow) {
-    const target = weatherRouting.lastTruckPos || cities.oklahomaCity;
+  if (weatherRouting.followId) {
+    weatherRouting.followId = null;
+    focusCamera(0);
+  } else {
+    const wx = wxFleet[0];
+    weatherRouting.followId = wx.id;
+    const target = wx._pos || weatherRouting.lastTruckPos || cities.oklahomaCity;
     mapObjects.map.flyTo(latLng(target), weatherRouting.followZoom, { duration: 1.0 });
     // Let the zoom-in fly finish before the gentle follow-pan takes over (otherwise the
     // pan, which keeps the current zoom, would cancel the fly before it reaches followZoom).
     weatherRouting.followHoldUntil = performance.now() + 1250;
-  } else {
-    focusCamera(0);
   }
   updateFollowButton();
 }
@@ -2730,8 +2817,8 @@ function toggleWeatherFollow() {
 function updateFollowButton() {
   const button = weatherRouting.dom && weatherRouting.dom.follow;
   if (!button) return;
-  button.textContent = weatherRouting.follow ? "Exit follow" : "Zoom to truck";
-  button.classList.toggle("active", weatherRouting.follow);
+  button.textContent = weatherRouting.followId ? `Following ${weatherRouting.followId}` : "Zoom to truck";
+  button.classList.toggle("active", !!weatherRouting.followId);
 }
 
 function weatherRoutingShowing() {
@@ -2748,15 +2835,22 @@ function applyWeatherVisibility() {
     else if (!showing && hasRadar) mapObjects.map.removeLayer(weatherRouting.radarLayer);
   }
 
+  if (liveWeather.rainLayer) {
+    const hasRain = mapObjects.map.hasLayer(liveWeather.rainLayer);
+    if (showing && !hasRain) liveWeather.rainLayer.addTo(mapObjects.map);
+    else if (!showing && hasRain) mapObjects.map.removeLayer(liveWeather.rainLayer);
+  }
+
   weatherRouting.lanes.forEach((lane) => {
     const isActive = lane.key === weatherRouting.activeKey;
     lane.line.setStyle({ opacity: showing ? (isActive ? 0.96 : 0.26) : 0 });
   });
-  if (weatherRouting.truckMarker) weatherRouting.truckMarker.setOpacity(showing ? 1 : 0);
+  Object.values(weatherRouting.fleetMarkers).forEach((marker) => marker.setOpacity(showing ? 1 : 0));
   weatherRouting.hazardLabels.forEach((marker) => marker.setOpacity(showing ? 1 : 0));
+  traffic.markers.forEach((marker) => marker.setOpacity(showing ? 1 : 0));
 
-  if (!showing && weatherRouting.follow) {
-    weatherRouting.follow = false;
+  if (!showing && weatherRouting.followId) {
+    weatherRouting.followId = null;
     updateFollowButton();
   }
 
@@ -2786,49 +2880,73 @@ function updateWeatherRouting(now) {
   advanceWeather(dt, elapsed);
   advanceHazards(dt, elapsed);
 
-  let best = weatherRouting.lanes[0];
-  weatherRouting.lanes.forEach((lane) => {
-    lane.score = scoreLane(lane.points);
-    if (lane.score < best.score) best = lane;
-  });
-
-  const active = weatherRouting.lanes.find((lane) => lane.key === weatherRouting.activeKey) || best;
-  // Hysteresis: only reroute when another lane is meaningfully clearer, and not too often.
-  if (best.key !== active.key && best.score < active.score - 0.16 && elapsed - weatherRouting.lastReroute > 2.4) {
-    weatherRouting.activeKey = best.key;
-    weatherRouting.avoided += 1;
-    weatherRouting.lastReroute = elapsed;
-    weatherRouting.rerouteFlashUntil = elapsed + 3.4;
-  }
-  const activeLane = weatherRouting.lanes.find((lane) => lane.key === weatherRouting.activeKey);
-
-  weatherRouting.truckProgress += dt * 0.02;
-  if (weatherRouting.truckProgress >= 1) weatherRouting.truckProgress = 0.02;
-  const position = pointAlongRoute(activeLane.points, weatherRouting.truckProgress);
-  weatherRouting.lastTruckPos = position;
-  const exposure = riskAt(position);
-  weatherRouting.truckMarker.setLatLng(latLng(position));
-
-  const severity = exposure > 0.6 ? "severe" : exposure > 0.32 ? "watch" : "clear";
-  if (severity !== weatherRouting.truckSeverity) {
-    weatherRouting.truckMarker.setIcon(weatherTruckIcon(severity));
-    weatherRouting.truckSeverity = severity;
-  }
-
-  if (weatherRouting.follow && now > weatherRouting.followHoldUntil && now - weatherRouting.lastFollowAt > 360) {
-    mapObjects.map.panTo(latLng(position), { animate: true, duration: 0.4 });
-    weatherRouting.lastFollowAt = now;
-  }
-
-  weatherRouting.lanes.forEach((lane) => {
-    const isActive = lane.key === weatherRouting.activeKey;
-    lane.line.setStyle({
-      color: isActive ? "#38d3dc" : "#7c8b97",
-      weight: isActive ? 5 : 3,
-      opacity: isActive ? 0.96 : 0.24,
-      dashArray: isActive ? "1 13" : "2 13",
+  // Rescore lanes and let EVERY truck independently pick its best corridor a few times a
+  // second. Each truck balances danger (weather + disasters + accidents) against distance
+  // via its own profile, so they spread across corridors and reroute in real time.
+  if (now - weatherRouting.lastScore > 250) {
+    weatherRouting.lastScore = now;
+    weatherRouting.lanes.forEach((lane) => {
+      lane.score = scoreLane(lane.points);
     });
-    if (isActive) lane.line.bringToFront();
+    const minMiles = weatherRouting.baselineMiles || Math.min(...weatherRouting.lanes.map((l) => l.miles));
+    wxFleet.forEach((truck) => {
+      const cost = (lane) => lane.score * truck.riskWeight + ((lane.miles - minMiles) / minMiles) * truck.distWeight;
+      let best = weatherRouting.lanes[0];
+      weatherRouting.lanes.forEach((lane) => {
+        if (cost(lane) < cost(best)) best = lane;
+      });
+      const current = weatherRouting.lanes.find((lane) => lane.key === truck._lane) || best;
+      // Hysteresis + per-truck cooldown so reroutes are meaningful, not jittery.
+      if (best.key !== current.key && cost(best) < cost(current) - 0.12 && elapsed - (truck._lastReroute || -99) > 3) {
+        truck._lane = best.key;
+        truck._lastReroute = elapsed;
+        weatherRouting.avoided += 1;
+        weatherRouting.rerouteFlashUntil = elapsed + 3.2;
+      }
+    });
+    weatherRouting.activeKey = wxFleet[0]._lane || weatherRouting.activeKey;
+  }
+  const activeLane = weatherRouting.lanes.find((lane) => lane.key === weatherRouting.activeKey) || weatherRouting.lanes[0];
+
+  // Advance every truck along its currently chosen lane.
+  wxFleet.forEach((truck) => {
+    const lane = weatherRouting.lanes.find((entry) => entry.key === truck._lane) || activeLane;
+    const progress = (truck.offset + elapsed * truck.speed * 0.00024) % 1;
+    const pos = pointAlongRoute(lane.points, progress);
+    truck._pos = pos;
+    const marker = weatherRouting.fleetMarkers[truck.id];
+    if (marker) marker.setLatLng(latLng(pos));
+    const sev = riskAt(pos);
+    const severity = sev > 0.6 ? "severe" : sev > 0.32 ? "watch" : "clear";
+    if (severity !== truck._sev) {
+      truck._sev = severity;
+      if (marker) marker.setIcon(fleetTruckIcon(truck, severity));
+    }
+  });
+  weatherRouting.lastTruckPos = wxFleet[0]._pos;
+  const exposure = riskAt(wxFleet[0]._pos || activeLane.points[0]);
+
+  if (weatherRouting.followId && now > weatherRouting.followHoldUntil && now - weatherRouting.lastFollowAt > 360) {
+    const followed = wxFleet.find((truck) => truck.id === weatherRouting.followId);
+    if (followed && followed._pos) {
+      mapObjects.map.panTo(latLng(followed._pos), { animate: true, duration: 0.4 });
+      weatherRouting.lastFollowAt = now;
+    }
+  }
+
+  // Highlight every corridor a truck is using; the weather-optimized unit's lane in cyan.
+  const usedLanes = new Set(wxFleet.map((truck) => truck._lane));
+  const wxLane = wxFleet[0]._lane;
+  weatherRouting.lanes.forEach((lane) => {
+    const isWx = lane.key === wxLane;
+    const used = usedLanes.has(lane.key);
+    lane.line.setStyle({
+      color: isWx ? "#38d3dc" : used ? "#a7bccb" : "#697480",
+      weight: isWx ? 5 : used ? 4 : 2.5,
+      opacity: isWx ? 0.96 : used ? 0.6 : 0.18,
+      dashArray: isWx ? "1 13" : used ? "4 12" : "2 14",
+    });
+    if (used) lane.line.bringToFront();
   });
 
   if (now - weatherRouting.lastRadarDraw > 40) {
@@ -2847,12 +2965,18 @@ function updateWeatherHud(activeLane, exposure, elapsed) {
 
   // Name the single biggest threat right now, whether it's weather or a natural disaster.
   let worst = null;
-  weatherRouting.cells.forEach((cell) => {
-    if (!worst || cell.intensity > worst.weight) worst = { name: cell.name, weight: cell.intensity };
-  });
-  weatherRouting.hazards.forEach((hazard) => {
+  if (!liveWeather.status.precip) {
+    weatherRouting.cells.forEach((cell) => {
+      if (!worst || cell.intensity > worst.weight) worst = { name: cell.name, weight: cell.intensity };
+    });
+  }
+  activeHazards().forEach((hazard) => {
     const weight = (hazard.intensity || hazard.severity) * 1.05; // hazards are weighted as serious
     if (!worst || weight > worst.weight) worst = { name: hazard.name, weight };
+  });
+  traffic.accidents.forEach((accident) => {
+    const weight = (accident.intensity || accident.severity) * 1.08; // crashes/closures are serious
+    if (!worst || weight > worst.weight) worst = { name: accident.name, weight };
   });
 
   const added = Math.max(0, Math.round(activeLane.miles - weatherRouting.baselineMiles));
@@ -2865,10 +2989,11 @@ function updateWeatherHud(activeLane, exposure, elapsed) {
       : "Clearest lane locked in";
   dom.detail.textContent = worst
     ? `Steering clear of ${worst.name} — holding the ${activeLane.label} corridor.`
-    : `Holding the ${activeLane.label} corridor.`;
+    : `Clear conditions — holding the ${activeLane.label} corridor.`;
   dom.lane.textContent = activeLane.label;
   dom.avoided.textContent = String(weatherRouting.avoided);
   dom.added.textContent = `${added} mi`;
+  if (dom.source) dom.source.textContent = liveDataSummary();
 }
 
 function hideScriptedMapLayers() {
@@ -2892,6 +3017,376 @@ function hideScriptedMapLayers() {
       lines.progress.setStyle({ opacity: 0 });
       lines.progressShadow.setStyle({ opacity: 0 });
     }
+  });
+}
+
+function renderHazardLabels(hazards) {
+  weatherRouting.hazardLabels.forEach((marker) => mapObjects.map.removeLayer(marker));
+  weatherRouting.hazardLabels = [];
+  const showing = weatherRoutingShowing();
+  hazards.forEach((hazard) => {
+    const marker = L.marker(latLng([hazard.lng, hazard.lat]), {
+      icon: hazardLabelIcon(hazard),
+      interactive: false,
+      opacity: showing ? 1 : 0,
+      zIndexOffset: 500,
+    }).addTo(mapObjects.map);
+    weatherRouting.hazardLabels.push(marker);
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * Live, keyless weather + disaster data with graceful fallback to the built-in
+ * simulation:
+ *   - RainViewer       -> animated precipitation radar tiles (visual)
+ *   - Open-Meteo       -> precipitation grid that drives route scoring
+ *   - NWS api.weather.gov -> active severe-weather / disaster alerts (hazards)
+ *   - USGS             -> recent earthquakes (hazards)
+ * Every source fails independently; whatever is unavailable keeps using the sim.
+ * ------------------------------------------------------------------------- */
+const liveWeather = {
+  rainLayer: null,
+  precipGrid: null,
+  realHazards: [],
+  alertHazards: [],
+  quakeHazards: [],
+  status: { radar: false, precip: false, alerts: false, quakes: false },
+  refreshMs: 5 * 60 * 1000,
+  region: { minLng: -103, maxLng: -84, minLat: 31, maxLat: 44 },
+};
+
+function initLiveWeather() {
+  if (!state.mapReady || !window.L) return;
+  if (!mapObjects.map.getPane("rainPane")) {
+    mapObjects.map.createPane("rainPane");
+    const pane = mapObjects.map.getPane("rainPane");
+    pane.style.pointerEvents = "none";
+    // Put the radar tiles beneath the route lines but above the base imagery.
+    pane.parentNode.insertBefore(pane, mapObjects.map.getPanes().overlayPane);
+  }
+  refreshLiveWeather();
+  setInterval(refreshLiveWeather, liveWeather.refreshMs);
+}
+
+async function refreshLiveWeather() {
+  await Promise.allSettled([loadRainviewer(), loadOpenMeteoGrid(), loadNwsAlerts(), loadUsgsQuakes()]);
+  mergeRealHazards();
+  applyWeatherVisibility();
+}
+
+function mergeRealHazards() {
+  const merged = [...liveWeather.alertHazards, ...liveWeather.quakeHazards].sort((a, b) => b.severity - a.severity);
+  liveWeather.realHazards = merged.slice(0, 12); // cap for routing/draw performance
+  if (liveWeather.status.alerts || liveWeather.status.quakes) {
+    renderHazardLabels(liveWeather.realHazards.slice(0, 5));
+  } else {
+    renderHazardLabels(weatherRouting.hazards);
+  }
+}
+
+async function loadRainviewer() {
+  try {
+    const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+    if (!response.ok) throw new Error("radar");
+    const data = await response.json();
+    const frames = (data.radar && data.radar.past) || [];
+    if (!frames.length) throw new Error("frames");
+    const frame = frames[frames.length - 1];
+    const url = `${data.host}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`;
+    if (liveWeather.rainLayer) mapObjects.map.removeLayer(liveWeather.rainLayer);
+    liveWeather.rainLayer = L.tileLayer(url, { pane: "rainPane", opacity: 0.72, tileSize: 256, crossOrigin: true });
+    liveWeather.status.radar = true;
+  } catch (error) {
+    liveWeather.status.radar = false;
+  }
+}
+
+async function loadOpenMeteoGrid() {
+  try {
+    const region = liveWeather.region;
+    const rows = 4;
+    const cols = 5;
+    const lats = [];
+    const lngs = [];
+    for (let i = 0; i < rows; i += 1) {
+      for (let k = 0; k < cols; k += 1) {
+        lats.push(+(region.minLat + (region.maxLat - region.minLat) * (i / (rows - 1))).toFixed(3));
+        lngs.push(+(region.minLng + (region.maxLng - region.minLng) * (k / (cols - 1))).toFixed(3));
+      }
+    }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats.join(",")}&longitude=${lngs.join(",")}&current=precipitation,weather_code`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("precip");
+    const data = await response.json();
+    const list = Array.isArray(data) ? data : [data];
+    liveWeather.precipGrid = list.map((entry) => ({
+      lat: entry.latitude,
+      lng: entry.longitude,
+      p: precipToIntensity(entry.current && entry.current.precipitation, entry.current && entry.current.weather_code),
+    }));
+    liveWeather.status.precip = true;
+  } catch (error) {
+    liveWeather.status.precip = false;
+    liveWeather.precipGrid = null;
+  }
+}
+
+function precipToIntensity(mm, code) {
+  let value = Math.min(1, (mm || 0) / 4);
+  if (code >= 95) value = Math.max(value, 0.85); // thunderstorm
+  else if (code >= 80) value = Math.max(value, 0.55); // rain showers
+  else if (code >= 71) value = Math.max(value, 0.5); // snow
+  else if (code >= 61) value = Math.max(value, 0.4); // rain
+  return value;
+}
+
+async function loadNwsAlerts() {
+  try {
+    const response = await fetch("https://api.weather.gov/alerts/active?area=OK,MO,KS,AR,IL,IA,NE,TN,IN,KY");
+    if (!response.ok) throw new Error("alerts");
+    const data = await response.json();
+    const features = (data.features || []).filter((feature) => feature.geometry);
+    const hazards = [];
+    features.forEach((feature) => {
+      const bounds = polygonCenterRadius(feature.geometry);
+      if (!bounds) return;
+      const props = feature.properties || {};
+      hazards.push({
+        type: alertType(props.event || ""),
+        name: props.event || "Weather alert",
+        lng: bounds.lng,
+        lat: bounds.lat,
+        radiusKm: Math.max(45, Math.min(190, bounds.radiusKm)),
+        severity: alertSeverity(props.severity),
+        intensity: alertSeverity(props.severity),
+      });
+    });
+    liveWeather.alertHazards = hazards;
+    liveWeather.status.alerts = hazards.length > 0;
+  } catch (error) {
+    liveWeather.status.alerts = false;
+    liveWeather.alertHazards = [];
+  }
+}
+
+async function loadUsgsQuakes() {
+  try {
+    const response = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson");
+    if (!response.ok) throw new Error("quakes");
+    const data = await response.json();
+    const region = liveWeather.region;
+    const hazards = (data.features || [])
+      .filter((feature) => {
+        const [lng, lat] = feature.geometry.coordinates;
+        return (
+          lng >= region.minLng - 6 &&
+          lng <= region.maxLng + 6 &&
+          lat >= region.minLat - 4 &&
+          lat <= region.maxLat + 4 &&
+          (feature.properties.mag || 0) >= 2.5
+        );
+      })
+      .map((feature) => {
+        const [lng, lat] = feature.geometry.coordinates;
+        const mag = feature.properties.mag || 2.5;
+        const severity = Math.min(1, (mag - 2) / 4 + 0.3);
+        return { type: "quake", name: `M${mag.toFixed(1)} earthquake`, lng, lat, radiusKm: Math.max(40, mag * 28), severity, intensity: severity };
+      });
+    liveWeather.quakeHazards = hazards;
+    liveWeather.status.quakes = hazards.length > 0;
+  } catch (error) {
+    liveWeather.status.quakes = false;
+    liveWeather.quakeHazards = [];
+  }
+}
+
+function polygonCenterRadius(geometry) {
+  let ring = null;
+  if (geometry.type === "Polygon") ring = geometry.coordinates[0];
+  else if (geometry.type === "MultiPolygon") ring = geometry.coordinates[0][0];
+  if (!ring || !ring.length) return null;
+  let minLng = 180;
+  let maxLng = -180;
+  let minLat = 90;
+  let maxLat = -90;
+  ring.forEach(([lng, lat]) => {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  });
+  return {
+    lng: (minLng + maxLng) / 2,
+    lat: (minLat + maxLat) / 2,
+    radiusKm: haversineKm([minLng, minLat], [maxLng, maxLat]) / 2,
+  };
+}
+
+function alertType(event) {
+  const text = event.toLowerCase();
+  if (text.includes("flood")) return "flood";
+  if (text.includes("fire") || text.includes("red flag")) return "wildfire";
+  if (text.includes("winter") || text.includes("ice") || text.includes("snow") || text.includes("blizzard") || text.includes("freez")) return "ice";
+  return "storm";
+}
+
+function alertSeverity(severity) {
+  return { Extreme: 0.96, Severe: 0.82, Moderate: 0.62, Minor: 0.46, Unknown: 0.5 }[severity] || 0.5;
+}
+
+function liveDataSummary() {
+  const live = [];
+  if (liveWeather.status.radar) live.push("radar");
+  if (liveWeather.status.precip) live.push("precip");
+  if (liveWeather.status.alerts) live.push("alerts");
+  if (liveWeather.status.quakes) live.push("quakes");
+  if (traffic.status.live) live.push("traffic");
+  return live.length ? `Live: ${live.join(", ")}` : "Simulated (live data offline)";
+}
+
+/* ---------------------------------------------------------------------------
+ * Road incidents / car accidents. Live via the TomTom Traffic Incidents API
+ * when a free key is configured (config.js or localStorage), otherwise a
+ * simulated set of wrecks/closures along the corridors. Either way they feed the
+ * risk field so the truck reroutes around crashes and closed roads.
+ * ------------------------------------------------------------------------- */
+const traffic = {
+  accidents: [],
+  simAccidents: [],
+  markers: [],
+  status: { live: false },
+  refreshMs: 3 * 60 * 1000,
+};
+
+function tomtomKey() {
+  if (window.APP_CONFIG && window.APP_CONFIG.tomtomTrafficKey) return window.APP_CONFIG.tomtomTrafficKey;
+  try {
+    return window.localStorage.getItem("tomtomTrafficKey") || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function initTraffic() {
+  if (!state.mapReady || !window.L) return;
+  traffic.simAccidents = createSimAccidents();
+  traffic.accidents = traffic.simAccidents;
+  renderAccidentMarkers();
+  refreshTraffic();
+  setInterval(refreshTraffic, traffic.refreshMs);
+  // Refresh the simulated wrecks periodically so rerouting stays demonstrable without a key.
+  setInterval(() => {
+    if (!traffic.status.live) {
+      traffic.simAccidents = createSimAccidents();
+      traffic.accidents = traffic.simAccidents;
+      renderAccidentMarkers();
+    }
+  }, 16000);
+}
+
+async function refreshTraffic() {
+  try {
+    traffic.accidents = await fetchTomTomIncidents();
+    traffic.status.live = true;
+  } catch (error) {
+    traffic.status.live = false;
+    traffic.accidents = traffic.simAccidents;
+  }
+  renderAccidentMarkers();
+}
+
+const tomtomCategory = {
+  1: { type: "accident", label: "Accident", severity: 0.8, radiusKm: 16 },
+  6: { type: "jam", label: "Heavy traffic jam", severity: 0.55, radiusKm: 14 },
+  7: { type: "closure", label: "Lane closed", severity: 0.7, radiusKm: 18 },
+  8: { type: "closure", label: "Road closed", severity: 0.95, radiusKm: 24 },
+  9: { type: "roadworks", label: "Road works", severity: 0.5, radiusKm: 14 },
+  14: { type: "accident", label: "Broken-down vehicle", severity: 0.5, radiusKm: 12 },
+};
+
+async function fetchTomTomIncidents() {
+  const key = tomtomKey();
+  if (!key) throw new Error("no tomtom key");
+  const region = liveWeather.region;
+  const bbox = `${region.minLng},${region.minLat},${region.maxLng},${region.maxLat}`;
+  const fields = encodeURIComponent(
+    "{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,iconCategory}}}}",
+  );
+  const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bbox}&fields=${fields}&language=en-GB&timeValidityFilter=present`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("tomtom " + response.status);
+  const data = await response.json();
+  return (data.incidents || []).map(mapTomtomIncident).filter(Boolean).slice(0, 20);
+}
+
+function mapTomtomIncident(incident) {
+  const props = incident.properties || {};
+  const category = tomtomCategory[props.iconCategory];
+  if (!category) return null; // skip weather-style categories (handled by the radar/hazards)
+  const geometry = incident.geometry || {};
+  let coord = null;
+  if (geometry.type === "Point") coord = geometry.coordinates;
+  else if (geometry.type === "LineString" && geometry.coordinates.length) {
+    coord = geometry.coordinates[Math.floor(geometry.coordinates.length / 2)];
+  }
+  if (!coord) return null;
+  const severity = Math.min(1, category.severity + ((props.magnitudeOfDelay || 0) >= 3 ? 0.1 : 0));
+  const description = (props.events && props.events[0] && props.events[0].description) || category.label;
+  return { type: category.type, name: description, lng: coord[0], lat: coord[1], radiusKm: category.radiusKm, severity, intensity: severity };
+}
+
+function createSimAccidents() {
+  const lanes = weatherRouting.lanes || [];
+  if (!lanes.length) return [];
+  const templates = [
+    { type: "closure", name: "Multi-vehicle crash — road closed", severity: 0.95, radiusKm: 24 },
+    { type: "accident", name: "Two-car accident", severity: 0.75, radiusKm: 16 },
+    { type: "jam", name: "Stop-and-go congestion", severity: 0.5, radiusKm: 14 },
+  ];
+  return templates.map((template, index) => {
+    const lane = lanes[index % lanes.length];
+    const points = lane.points;
+    const at = 0.25 + Math.random() * 0.5;
+    const point = points[Math.floor(at * (points.length - 1))];
+    return { ...template, lng: point[0], lat: point[1], intensity: template.severity };
+  });
+}
+
+function accidentIntensityAt(point) {
+  let max = 0;
+  for (const accident of traffic.accidents) {
+    const distance = haversineKm(point, [accident.lng, accident.lat]);
+    if (distance >= accident.radiusKm) continue;
+    const falloff = 1 - distance / accident.radiusKm;
+    const value = (accident.intensity || accident.severity) * falloff * falloff * (3 - 2 * falloff);
+    if (value > max) max = value;
+  }
+  return max;
+}
+
+function accidentIcon(accident) {
+  const glyph =
+    accident.type === "closure" ? "CLOSED" : accident.type === "jam" ? "JAM" : accident.type === "roadworks" ? "WORKS" : "CRASH";
+  return L.divIcon({
+    className: "leaflet-label-icon",
+    html: `<div class="accident-marker ${accident.type}"><span class="accident-dot"></span><span class="accident-tag">${glyph}</span></div>`,
+    iconSize: [86, 24],
+    iconAnchor: [9, 12],
+  });
+}
+
+function renderAccidentMarkers() {
+  traffic.markers.forEach((marker) => mapObjects.map.removeLayer(marker));
+  traffic.markers = [];
+  const showing = weatherRoutingShowing();
+  traffic.accidents.slice(0, 16).forEach((accident) => {
+    const marker = L.marker(latLng([accident.lng, accident.lat]), {
+      icon: accidentIcon(accident),
+      interactive: false,
+      opacity: showing ? 1 : 0,
+      zIndexOffset: 650,
+    }).addTo(mapObjects.map);
+    traffic.markers.push(marker);
   });
 }
 
@@ -2927,7 +3422,7 @@ elements.streetZoom.addEventListener("click", () => {
 window.addEventListener("resize", () => {
   if (state.mapReady) {
     mapObjects.map.invalidateSize();
-    if (!weatherRouting.follow) focusCamera(Math.max(0, state.currentPhaseIndex), true);
+    if (!weatherRouting.followId) focusCamera(Math.max(0, state.currentPhaseIndex), true);
   }
 });
 
