@@ -28,6 +28,9 @@ def get_load(load_id: int, db: Session = Depends(get_db)) -> Load:
 @router.post("/{load_id}/draft-email", response_model=EmailDraftResponse)
 def draft_email(load_id: int, db: Session = Depends(get_db)) -> EmailDraftResponse:
     """Preview an AI-drafted customer status email (does not send)."""
+    settings = get_settings()
+    if not settings.allow_manual_email:
+        raise HTTPException(403, "Manual email is disabled. Mail is handled by the AI inbox only.")
     load = db.get(Load, load_id)
     if load is None:
         raise HTTPException(404, "Load not found")
@@ -55,6 +58,8 @@ def send_ai_customer_email(
         raise HTTPException(404, "Load not found")
 
     settings = get_settings()
+    if not settings.allow_manual_email:
+        raise HTTPException(403, "Manual email is disabled. Mail is handled by the AI inbox only.")
     if not settings.anthropic_api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
 

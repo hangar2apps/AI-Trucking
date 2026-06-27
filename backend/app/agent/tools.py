@@ -19,6 +19,8 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.capdb import CapSessionLocal
+from app.cap_models import Document, Inspection
 from app.config import get_settings
 from app.models import Event, Load, LoadStatus, Truck, TruckStatus
 
@@ -181,6 +183,60 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "body": {"type": "string"},
             },
             "required": ["load_id", "subject", "body"],
+        },
+    },
+    {
+        "name": "get_load_documents",
+        "description": "List processed documents (POD/BOL/rate con) for a load, with match status and extracted fields.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"load_id": {"type": "integer"}},
+            "required": ["load_id"],
+        },
+    },
+    {
+        "name": "get_load_inspections",
+        "description": "List freight photo inspections for a load, with damage findings, seal numbers, and condition reports.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"load_id": {"type": "integer"}},
+            "required": ["load_id"],
+        },
+    },
+    {
+        "name": "generate_invoice",
+        "description": "Generate and send an invoice for a load from its matched POD. Invoices over the auto-send limit are queued for human approval automatically.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"load_id": {"type": "integer"}},
+            "required": ["load_id"],
+        },
+    },
+    {
+        "name": "send_milestone_email",
+        "description": "Send a proactive milestone update to the customer (picked_up, in_transit, two_hours_out, delivered).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "load_id": {"type": "integer"},
+                "milestone": {
+                    "type": "string",
+                    "enum": ["picked_up", "in_transit", "two_hours_out", "delivered"],
+                },
+            },
+            "required": ["load_id", "milestone"],
+        },
+    },
+    {
+        "name": "escalate_to_human",
+        "description": "Queue a high-stakes or low-confidence situation for human review instead of acting alone.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "load_id": {"type": "integer"},
+                "reason": {"type": "string"},
+            },
+            "required": ["reason"],
         },
     },
 ]
@@ -346,6 +402,86 @@ def _send_customer_email(db: Session, load_id: int, subject: str, body: str, dry
     return {"sent": True, "id": message_id, **record}
 
 
+def _get_load_documents(db: Session, load_id: int) -> dict:
+    with CapSessionLocal() as cap_db:
+        docs = cap_db.scalars(
+            select(Document).where(Document.load_id == load_id).order_by(Document.created_at.desc())
+        )
+        return {
+            "documents": [
+                {
+                    "id": d.id,
+                    "doc_type": d.doc_type.value,
+                    "match_status": d.match_status.value,
+                    "flags": d.flags or [],
+                    "fields": d.extracted_fields or {},
+                }
+                for d in docs
+            ]
+        }
+
+
+def _get_load_inspections(db: Session, load_id: int) -> dict:
+    with CapSessionLocal() as cap_db:
+        inspections = cap_db.scalars(
+            select(Inspection)
+            .where(Inspection.load_id == load_id)
+            .order_by(Inspection.created_at.desc())
+        )
+        return {
+            "inspections": [
+                {
+                    "id": i.id,
+                    "phase": i.phase.value,
+                    "damage_detected": i.damage_detected,
+                    "seal_number": i.seal_number,
+                    "condition_report": i.condition_report,
+                }
+                for i in inspections
+            ]
+        }
+
+
+def _generate_invoice(db: Session, load_id: int, dry_run: bool) -> dict:
+    from app.agent import document_agent  # lazy import to avoid import cycles
+
+    with CapSessionLocal() as cap_db:
+        return document_agent.invoice_for_load(db, cap_db, load_id, dry_run=dry_run)
+
+
+def _send_milestone_email(db: Session, load_id: int, milestone: str, dry_run: bool) -> dict:
+    from app.agent import customer_comms  # lazy import to avoid import cycles
+
+    if dry_run:
+        load = db.get(Load, load_id)
+        if load is None:
+            return {"error": f"load {load_id} not found"}
+        return {"dry_run": True, "would_send_milestone": milestone, "to": load.customer.email}
+    with CapSessionLocal() as cap_db:
+        return customer_comms.send_milestone_email(db, cap_db, load_id=load_id, milestone=milestone)
+
+
+def _escalate_to_human(db: Session, reason: str, dry_run: bool, load_id: int | None = None) -> dict:
+    from app.agent import approvals  # lazy import to avoid import cycles
+
+    load = db.get(Load, load_id) if load_id else None
+    if dry_run:
+        return {"dry_run": True, "would_escalate": reason, "load_id": load_id}
+    with CapSessionLocal() as cap_db:
+        item = approvals.enqueue(
+            cap_db,
+            action_type="escalate_to_human",
+            capability="brain",
+            reason=reason,
+            payload={"note": reason},
+            load_id=load_id,
+            load_ref=load.reference if load else None,
+            confidence="low",
+        )
+        cap_db.commit()
+        return {"escalated": True, "approval_item_id": item.id, "reason": reason}
+
+
 def execute_tool(db: Session, name: str, tool_input: dict, dry_run: bool = True) -> dict:
     """Dispatch a tool call to its implementation. Returns a JSON-safe dict."""
     if name == "get_loads":
@@ -362,4 +498,14 @@ def execute_tool(db: Session, name: str, tool_input: dict, dry_run: bool = True)
         return _reassign_load(db, dry_run=dry_run, **tool_input)
     if name == "send_customer_email":
         return _send_customer_email(db, dry_run=dry_run, **tool_input)
+    if name == "get_load_documents":
+        return _get_load_documents(db, **tool_input)
+    if name == "get_load_inspections":
+        return _get_load_inspections(db, **tool_input)
+    if name == "generate_invoice":
+        return _generate_invoice(db, dry_run=dry_run, **tool_input)
+    if name == "send_milestone_email":
+        return _send_milestone_email(db, dry_run=dry_run, **tool_input)
+    if name == "escalate_to_human":
+        return _escalate_to_human(db, dry_run=dry_run, **tool_input)
     return {"error": f"unknown tool {name!r}"}

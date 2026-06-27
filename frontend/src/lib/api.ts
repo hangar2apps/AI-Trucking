@@ -179,7 +179,6 @@ export interface InboundSimulatePayload {
   subject?: string;
   sender_name?: string;
   to_email?: string;
-  auto_send?: boolean;
 }
 
 export interface InboundProcessResponse {
@@ -207,6 +206,7 @@ export interface InboundProcessResponse {
 export interface InboxItem {
   id: number;
   created_at: string;
+  load_id: number | null;
   from_email: string;
   from_name: string;
   subject: string;
@@ -223,7 +223,93 @@ export interface InboxItem {
 export interface InboxResponse {
   items: InboxItem[];
   ai_inbox_email: string;
+  auto_reply_enabled: boolean;
+  manual_email_allowed: boolean;
 }
+
+// --- Multi-capability agent -------------------------------------------------
+
+export interface AgentActionItem {
+  id: number;
+  created_at: string;
+  capability: string;
+  action: string;
+  load_id: number | null;
+  load_ref: string | null;
+  confidence: string | null;
+  result: string | null;
+  data: Record<string, unknown> | null;
+}
+
+export interface DocumentItem {
+  id: number;
+  created_at: string;
+  load_id: number | null;
+  doc_type: string;
+  original_name: string | null;
+  match_status: string;
+  extracted_fields: Record<string, unknown> | null;
+  flags: string[] | null;
+}
+
+export interface InvoiceItem {
+  id: number;
+  created_at: string;
+  load_id: number | null;
+  document_id: number | null;
+  number: string;
+  amount: number;
+  line_items: Array<{ description: string; amount: number }> | null;
+  status: string;
+}
+
+export interface InspectionItem {
+  id: number;
+  created_at: string;
+  load_id: number | null;
+  phase: string;
+  file_paths: string[] | null;
+  seal_number: string | null;
+  condition_report: string | null;
+  damage_detected: boolean;
+  findings: Record<string, unknown> | null;
+}
+
+export interface ApprovalItem {
+  id: number;
+  created_at: string;
+  resolved_at: string | null;
+  action_type: string;
+  capability: string;
+  load_id: number | null;
+  load_ref: string | null;
+  confidence: string | null;
+  reason: string | null;
+  payload: Record<string, unknown> | null;
+  status: string;
+  result: Record<string, unknown> | null;
+}
+
+export interface RouteEventResult {
+  events_processed: number;
+  results: Array<{ type: string; capability: string; result: Record<string, unknown> }>;
+}
+
+export interface DocumentUploadPayload {
+  file_base64: string;
+  original_name?: string;
+  media_type?: string;
+  doc_type_hint?: string | null;
+  load_hint?: string | null;
+}
+
+export interface PhotoUploadPayload {
+  photos: Array<{ file_base64: string; name?: string; media_type?: string }>;
+  phase: "pickup" | "delivery";
+  load_hint?: string | null;
+}
+
+export type MilestoneKind = "picked_up" | "in_transit" | "two_hours_out" | "delivered";
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -303,4 +389,37 @@ export const api = {
     }),
   getAssistantInbox: (limit = 40) =>
     fetchJson<InboxResponse>(`/assistant/inbox?limit=${limit}`),
+
+  // --- Multi-capability agent ---
+  getAgentActions: (limit = 100) =>
+    fetchJson<AgentActionItem[]>(`/agent/actions?limit=${limit}`),
+  getDocuments: (limit = 50) => fetchJson<DocumentItem[]>(`/documents?limit=${limit}`),
+  getInvoices: (limit = 50) => fetchJson<InvoiceItem[]>(`/invoices?limit=${limit}`),
+  getInspections: (limit = 50) => fetchJson<InspectionItem[]>(`/inspections?limit=${limit}`),
+  getApprovals: (status?: string, limit = 50) =>
+    fetchJson<ApprovalItem[]>(
+      `/approvals?limit=${limit}${status ? `&status=${status}` : ""}`
+    ),
+  approveItem: (id: number) =>
+    fetchJson<ApprovalItem>(`/approvals/${id}/approve`, { method: "POST" }),
+  rejectItem: (id: number, note?: string) =>
+    fetchJson<ApprovalItem>(`/approvals/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ note: note ?? null }),
+    }),
+  uploadDocument: (payload: DocumentUploadPayload) =>
+    fetchJson<RouteEventResult>("/intake/document", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  uploadPhotos: (payload: PhotoUploadPayload) =>
+    fetchJson<RouteEventResult>("/intake/photo", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  sendMilestone: (load_id: number, milestone: MilestoneKind) =>
+    fetchJson<Record<string, unknown>>("/intake/milestone", {
+      method: "POST",
+      body: JSON.stringify({ load_id, milestone }),
+    }),
 };

@@ -162,16 +162,19 @@ def draft_inquiry_reply(
     sender_line = sender_name.strip() or from_email.strip()
 
     system = f"""\
-You are the AI operations assistant for {settings.company_name}. You read inbound \
+You are the autonomous AI mail agent for {settings.company_name}. You read inbound \
 messages from customers and drivers, infer what they need even when the wording is \
-vague or incomplete, and draft a helpful reply email.
+vague or incomplete, and write the reply that is sent immediately — there is no human \
+review, dispatcher, or operator in the loop.
 
 Rules:
 - Ground every claim in the fleet data provided. Do not invent ETAs, truck names, or statuses.
 - If the message is unclear, set needs_clarification=true and ask 1–2 specific questions \
 while still providing whatever status you CAN confirm from the data.
+- Never say a human will follow up, call them back, or review the message — you ARE the \
+response. Give a complete, actionable answer now.
 - Write warmly and professionally. Sign off as "The {settings.company_name} Team".
-- reply_body is the email the recipient receives; internal_summary is for dispatch only.
+- reply_body is sent directly to the sender; internal_summary is for the system log only.
 - Pick matched_load_reference from the load list when confident; otherwise null."""
 
     user_content = f"""\

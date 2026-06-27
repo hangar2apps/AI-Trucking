@@ -1,7 +1,11 @@
 import {
   api,
+  type AgentActionItem,
   type AgentRunResult,
+  type ApprovalItem,
   type ComputeEtaResult,
+  type DocumentItem,
+  type DocumentUploadPayload,
   type EmailDraftResponse,
   type EmailDraftSendResponse,
   type FleetEvent,
@@ -12,8 +16,13 @@ import {
   type InboundSimulatePayload,
   type InboxItem,
   type InboxResponse,
+  type InspectionItem,
+  type InvoiceItem,
   type Load,
   type LoadDetail,
+  type MilestoneKind,
+  type PhotoUploadPayload,
+  type RouteEventResult,
   type SimStatus,
   type Truck,
   type WeatherRouteResult,
@@ -150,6 +159,51 @@ export async function simulateInboundEmail(
 
 export async function getAssistantInbox(limit = 40): Promise<InboxResponse> {
   return api.getAssistantInbox(limit);
+}
+
+// --- Multi-capability agent -------------------------------------------------
+
+export async function getAgentActions(limit = 100): Promise<AgentActionItem[]> {
+  return withFallback(() => api.getAgentActions(limit), []);
+}
+
+export async function getDocuments(limit = 50): Promise<DocumentItem[]> {
+  return withFallback(() => api.getDocuments(limit), []);
+}
+
+export async function getInvoices(limit = 50): Promise<InvoiceItem[]> {
+  return withFallback(() => api.getInvoices(limit), []);
+}
+
+export async function getInspections(limit = 50): Promise<InspectionItem[]> {
+  return withFallback(() => api.getInspections(limit), []);
+}
+
+export async function getApprovals(status?: string, limit = 50): Promise<ApprovalItem[]> {
+  return withFallback(() => api.getApprovals(status, limit), []);
+}
+
+export async function approveItem(id: number): Promise<ApprovalItem> {
+  return api.approveItem(id);
+}
+
+export async function rejectItem(id: number, note?: string): Promise<ApprovalItem> {
+  return api.rejectItem(id, note);
+}
+
+export async function uploadDocument(payload: DocumentUploadPayload): Promise<RouteEventResult> {
+  return api.uploadDocument(payload);
+}
+
+export async function uploadPhotos(payload: PhotoUploadPayload): Promise<RouteEventResult> {
+  return api.uploadPhotos(payload);
+}
+
+export async function sendMilestone(
+  loadId: number,
+  milestone: MilestoneKind
+): Promise<Record<string, unknown>> {
+  return api.sendMilestone(loadId, milestone);
 }
 
 export { DEMO_LOAD_REFERENCE };

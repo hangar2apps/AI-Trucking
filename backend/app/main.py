@@ -3,9 +3,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.capdb import init_cap_db
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import agent, assistant, events, fleet, loads, sim, survey, tools
+from app.routers import (
+    agent,
+    approvals,
+    assistant,
+    capabilities,
+    events,
+    fleet,
+    intake,
+    loads,
+    sim,
+    survey,
+    tools,
+)
 from app.seed import seed
 from app.sim import simulator
 
@@ -20,6 +33,10 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
             seed(db)
+    # The multi-capability agent keeps its own data in a local SQLite store
+    # (documents, invoices, inspections, approvals, action log) regardless of
+    # where the main fleet DB lives.
+    init_cap_db()
     yield
     await simulator.stop()
 
@@ -45,6 +62,9 @@ app.include_router(events.router)
 app.include_router(sim.router)
 app.include_router(tools.router)
 app.include_router(survey.router)
+app.include_router(intake.router)
+app.include_router(approvals.router)
+app.include_router(capabilities.router)
 
 
 @app.get("/health", tags=["meta"])

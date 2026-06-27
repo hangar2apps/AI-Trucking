@@ -6,14 +6,26 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent import customer_comms
 from app.agent.inquiry_agent import draft_inquiry_reply, infer_sender_role
+from app.capdb import get_cap_db
 from app.config import get_settings
 from app.db import get_db
 from app.models import Event
 from app.services.email_send import send_customer_email
-from app.services.inbound_processor import parse_resend_inbound_webhook, process_inbound_email
+from app.services.inbound_processor import parse_resend_inbound_webhook
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
+
+_MANUAL_DISABLED = (
+    "Manual email endpoints are disabled. All mail is handled automatically "
+    "via POST /assistant/inbound/webhook."
+)
+
+
+def _require_manual_email_allowed() -> None:
+    if not get_settings().allow_manual_email:
+        raise HTTPException(403, _MANUAL_DISABLED)
 
 
 class InquiryRequest(BaseModel):
@@ -51,7 +63,6 @@ class InboundSimulateRequest(BaseModel):
     subject: str = ""
     sender_name: str = ""
     to_email: str = ""
-    auto_send: bool = True
 
 
 class InboundProcessResponse(BaseModel):
@@ -79,6 +90,7 @@ class InboundProcessResponse(BaseModel):
 class InboxItem(BaseModel):
     id: int
     created_at: datetime
+    load_id: int | None
     from_email: str
     from_name: str
     subject: str
@@ -95,6 +107,8 @@ class InboxItem(BaseModel):
 class InboxResponse(BaseModel):
     items: list[InboxItem]
     ai_inbox_email: str
+    auto_reply_enabled: bool
+    manual_email_allowed: bool
 
 
 def _to_response(draft: object, model: str) -> InquiryReplyResponse:
@@ -123,7 +137,8 @@ def _resolve_role(db: Session, req: InquiryRequest) -> Literal["customer", "driv
 
 @router.post("/inquiry", response_model=InquiryReplyResponse)
 def respond_to_inquiry(req: InquiryRequest, db: Session = Depends(get_db)) -> InquiryReplyResponse:
-    """Understand a customer or driver inquiry and draft a tailored reply."""
+    """Preview-only inquiry reply (disabled when manual email is off)."""
+    _require_manual_email_allowed()
     settings = get_settings()
     if not settings.anthropic_api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
@@ -145,7 +160,8 @@ def respond_to_inquiry(req: InquiryRequest, db: Session = Depends(get_db)) -> In
 
 @router.post("/inquiry/send", response_model=InquirySendResponse)
 def send_inquiry_reply(req: InquiryRequest, db: Session = Depends(get_db)) -> InquirySendResponse:
-    """Draft and email a reply to a customer or driver inquiry."""
+    """Manual inquiry send (disabled — use inbound webhook for autonomous replies)."""
+    _require_manual_email_allowed()
     settings = get_settings()
     if not settings.anthropic_api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
@@ -177,7 +193,11 @@ def send_inquiry_reply(req: InquiryRequest, db: Session = Depends(get_db)) -> In
 
 
 @router.post("/inbound/webhook", response_model=InboundProcessResponse)
-async def inbound_email_webhook(request: Request, db: Session = Depends(get_db)) -> InboundProcessResponse:
+async def inbound_email_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    cap_db: Session = Depends(get_cap_db),
+) -> InboundProcessResponse:
     """Resend inbound webhook — auto-understand and auto-reply to received emails."""
     settings = get_settings()
     if not settings.anthropic_api_key:
@@ -192,14 +212,14 @@ async def inbound_email_webhook(request: Request, db: Session = Depends(get_db))
     if not parsed:
         raise HTTPException(400, "Unsupported webhook event (expected email.received)")
 
-    result = process_inbound_email(
+    result = customer_comms.process_customer_email(
         db,
+        cap_db,
         from_email=parsed["from_raw"] or parsed["from_email"],
         body=parsed["body"],
         subject=parsed["subject"],
         to_email=parsed["to_email"],
         source="webhook",
-        auto_send=True,
     )
     return InboundProcessResponse(**result)
 
@@ -208,21 +228,22 @@ async def inbound_email_webhook(request: Request, db: Session = Depends(get_db))
 def simulate_inbound_email(
     req: InboundSimulateRequest,
     db: Session = Depends(get_db),
+    cap_db: Session = Depends(get_cap_db),
 ) -> InboundProcessResponse:
     """Simulate an inbound email (demo / testing) and auto-reply."""
     settings = get_settings()
     if not settings.anthropic_api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
 
-    result = process_inbound_email(
+    result = customer_comms.process_customer_email(
         db,
+        cap_db,
         from_email=req.from_email,
         from_name=req.sender_name,
         body=req.body,
         subject=req.subject,
         to_email=req.to_email,
         source="simulate",
-        auto_send=req.auto_send,
     )
     return InboundProcessResponse(**result)
 
@@ -248,6 +269,7 @@ def get_inbox(db: Session = Depends(get_db), limit: int = 40) -> InboxResponse:
             InboxItem(
                 id=event.id,
                 created_at=event.created_at,
+                load_id=event.load_id,
                 from_email=str(data.get("from_email") or ""),
                 from_name=str(data.get("from_name") or ""),
                 subject=str(data.get("subject") or ""),
@@ -265,4 +287,6 @@ def get_inbox(db: Session = Depends(get_db), limit: int = 40) -> InboxResponse:
     return InboxResponse(
         items=items,
         ai_inbox_email=settings.ai_inbox_email or settings.from_email,
+        auto_reply_enabled=settings.inbound_auto_reply_enabled,
+        manual_email_allowed=settings.allow_manual_email,
     )

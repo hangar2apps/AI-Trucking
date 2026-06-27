@@ -76,9 +76,10 @@ def process_inbound_email(
 
     reply_subject = _reply_subject(subject, draft.reply_subject)
     auto_reply_sent = False
-    send_message = "Auto-reply skipped (auto_send=false)."
+    send_message = "Auto-reply disabled (inbound_auto_reply_enabled=false)."
 
-    if auto_send:
+    should_send = auto_send and settings.inbound_auto_reply_enabled
+    if should_send:
         auto_reply_sent, send_message = send_customer_email(
             to_email=draft.recipient_email,
             subject=reply_subject,
@@ -88,7 +89,7 @@ def process_inbound_email(
 
     inbox_to = to_email.strip() or settings.ai_inbox_email or settings.from_email
     summary = (
-        f"Inbound from {sender_email} — auto-reply {'sent' if auto_reply_sent else 'drafted only'}"
+        f"Inbound from {sender_email} — AI auto-reply {'sent' if auto_reply_sent else 'not sent'}"
     )
 
     event = Event(

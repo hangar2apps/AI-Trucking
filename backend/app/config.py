@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     demo_email_to: str = ""
     # Inbound address — set Reply-To on AI emails so replies land here (Resend inbound).
     ai_inbox_email: str = "onboarding@resend.dev"
+    # Inbound mail is always auto-replied by AI; no human review step.
+    inbound_auto_reply_enabled: bool = True
+    # Block manual "click to send" email endpoints (loads / inquiry send).
+    allow_manual_email: bool = False
 
     frontend_url: str = "http://localhost:3000"
     company_name: str = "Aurora Freight"
@@ -35,6 +39,13 @@ class Settings(BaseSettings):
 
     reasoning_model: str = "claude-opus-4-8"
     email_model: str = "claude-sonnet-4-6"
+
+    # Multi-capability agent: invoices above this auto-send limit are queued for
+    # human approval instead of being emailed autonomously.
+    invoice_approval_threshold: float = 5000.0
+    # Internal recipients for damage / claims alerts (comma-separated ok).
+    dispatcher_email: str = "dispatch@aurorafreight.example"
+    claims_email: str = "claims@aurorafreight.example"
 
 
 def get_settings() -> Settings:
