@@ -6,17 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.monitor.service import monitor
-from app.routers import agent, events, fleet, loads, monitor as monitor_router, sim, survey
+from app.routers import agent, events, fleet, loads, monitor as monitor_router, sim, survey, tools
 from app.sim import simulator
 from app.seed import seed
+from app.sim import simulator
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
     # Supabase/Postgres is the source of truth: schema + seed come from
     # backend/sql/seed_supabase.sql. Only auto-create and seed for a local
     # SQLite throwaway DB so `uv run uvicorn ...` still boots with zero setup.
-    if get_settings().database_url.startswith("sqlite"):
+    if settings.database_url.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
             seed(db)
@@ -31,7 +33,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Open CORS for the local React dashboards during the hackathon.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,6 +45,7 @@ app.include_router(fleet.router)
 app.include_router(agent.router)
 app.include_router(events.router)
 app.include_router(sim.router)
+app.include_router(tools.router)
 app.include_router(survey.router)
 app.include_router(monitor_router.router)
 
@@ -58,4 +60,5 @@ def health() -> dict:
         "email_model": s.email_model,
         "reasoning_model": s.reasoning_model,
         "ai_test_mode": s.ai_test_mode,
+        "sim_running": simulator.running,
     }

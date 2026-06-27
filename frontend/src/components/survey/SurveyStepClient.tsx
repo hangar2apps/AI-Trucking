@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ProgressBar } from "@/components/survey/ProgressBar";
 import { StepRenderer } from "@/components/survey/StepRenderer";
 import { SurveyNavigation } from "@/components/survey/SurveyNavigation";
-import { api } from "@/lib/api";
+import { submitLeadSurvey } from "@/lib/survey-submit";
 import { surveySteps, validateStep } from "@/lib/survey-steps";
 import { useSurveyStore } from "@/stores/survey-store";
 
@@ -31,19 +31,7 @@ export function SurveyStepClient({ step }: SurveyStepClientProps) {
     setError(null);
 
     try {
-      const result = await api.submitSurvey({
-        company_size: answers.companySize,
-        industry: answers.industry,
-        fleet_size: answers.fleetSize,
-        features: answers.features,
-        pain_point: answers.painPoint,
-        current_tools: answers.currentTools,
-        timeline: answers.timeline,
-        role: answers.role,
-        email: answers.email,
-        phone: answers.phone,
-        consent: answers.consent,
-      });
+      const result = await submitLeadSurvey(answers, "survey_page");
 
       sessionStorage.setItem(
         "survey-submit-result",
@@ -56,7 +44,7 @@ export function SurveyStepClient({ step }: SurveyStepClientProps) {
       router.push("/survey/complete");
     } catch {
       setError(
-        "Could not submit survey. Make sure the backend is running at localhost:8000."
+        "Could not submit survey. Add Supabase keys to .env.local or start the backend at localhost:8000."
       );
     } finally {
       setSubmitting(false);
@@ -64,7 +52,7 @@ export function SurveyStepClient({ step }: SurveyStepClientProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl px-6 py-12">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       <ProgressBar step={step} />
       <h1 className="mb-2 text-2xl font-bold text-[#1A2B4A] md:text-3xl">
         {config.title}

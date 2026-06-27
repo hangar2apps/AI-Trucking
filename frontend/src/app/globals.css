@@ -3,11 +3,26 @@
 :root {
   --background: #ffffff;
   --foreground: #1a2b4a;
+  --primary: #0b5fff;
+  --primary-dark: #0847cc;
+  --primary-light: #e8f4fc;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --surface: #f9fafb;
+  --sidebar-width: 16rem;
+  --header-height: 3.5rem;
+  --radius: 0.75rem;
+  --shadow-sm: 0 1px 2px rgb(26 43 74 / 6%);
+  --shadow-md: 0 4px 12px rgb(26 43 74 / 8%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
   --font-sans: var(--font-inter);
   --font-serif: var(--font-lora);
 }
@@ -16,4 +31,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Smooth focus rings (Samsara-style accessibility) */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

@@ -133,13 +133,52 @@ export interface MonitorTickResult {
   reasoning: { level: string; text: string }[];
 }
 
+export interface WeatherRouteResult {
+  status: string;
+  incidents: Array<{
+    type: string;
+    label: string;
+    severity: string;
+    eta_impact_minutes?: number;
+    affected_route?: string;
+  }>;
+  note: string;
+}
+
+export interface ComputeEtaResult {
+  distance_mi?: number;
+  drive_hours?: number;
+  eta?: string;
+  error?: string;
+}
+
+export interface AgentStep {
+  kind: string;
+  text?: string | null;
+  tool?: string | null;
+  tool_input?: Record<string, unknown> | null;
+  tool_output?: Record<string, unknown> | null;
+}
+
+export interface AgentRunResult {
+  final_message: string;
+  steps: AgentStep[];
+  iterations: number;
+  dry_run: boolean;
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  const headers = new Headers(init?.headers);
+  if (init?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status}`);
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      detail ? `API ${path} failed: ${res.status} ${detail}` : `API ${path} failed: ${res.status}`
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -164,6 +203,7 @@ export const api = {
       body: JSON.stringify(answers),
     }),
   getEvents: (sinceId = 0) =>
+
     fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}`),
   simStatus: () => fetchJson<SimStatus>("/sim/status"),
   simTick: () => fetchJson<SimTickResult>("/sim/tick", { method: "POST" }),
@@ -173,4 +213,26 @@ export const api = {
   monitorTick: () => fetchJson<MonitorTickResult>("/monitor/tick", { method: "POST" }),
   monitorStart: () => fetchJson<MonitorStatus>("/monitor/start", { method: "POST" }),
   monitorStop: () => fetchJson<MonitorStatus>("/monitor/stop", { method: "POST" }),
+
+  checkWeatherRoute: (route: {
+    origin_lat: number;
+    origin_lng: number;
+    dest_lat: number;
+    dest_lng: number;
+  }) =>
+    fetchJson<WeatherRouteResult>("/tools/check-weather-route", {
+      method: "POST",
+      body: JSON.stringify(route),
+    }),
+  computeEta: (payload: { truck_id: number; dest_lat: number; dest_lng: number }) =>
+    fetchJson<ComputeEtaResult>("/tools/compute-eta", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  runAgent: (situation: string, dryRun = true) =>
+    fetchJson<AgentRunResult>("/agent/run", {
+      method: "POST",
+      body: JSON.stringify({ situation, dry_run: dryRun }),
+    }),
+
 };

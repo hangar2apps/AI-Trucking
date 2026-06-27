@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MockDataBanner } from "@/components/dashboard/MockDataBanner";
@@ -180,4 +178,5 @@ export default function LoadsPage() {
       </div>
     </div>
   );
+
 }

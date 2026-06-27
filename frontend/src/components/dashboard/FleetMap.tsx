@@ -48,6 +48,11 @@ export function FleetMap({
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-[#E8F4FC] via-[#F0FDF4] to-[#DBEAFE]">
+      <div className="absolute top-3 right-3 z-20 rounded-lg border border-white/80 bg-white/90 px-3 py-2 text-[10px] text-[#6B7280] shadow-sm backdrop-blur">
+        <span className="font-semibold text-[#1A2B4A]">A-TMS Map</span>
+        <span className="mx-1.5">·</span>
+        Live fleet overlay
+      </div>
       <svg className="absolute inset-0 h-full w-full opacity-20" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">

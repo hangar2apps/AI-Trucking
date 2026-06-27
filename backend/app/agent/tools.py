@@ -220,9 +220,31 @@ def _compute_eta(db: Session, truck_id: int, dest_lat: float, dest_lng: float) -
     return {"distance_mi": round(miles, 1), "drive_hours": round(hours, 2), "eta": eta.isoformat()}
 
 
-def _check_weather_route(db: Session, **_route: float) -> dict:
-    # STUB — owned by the routing service. Returns "clear" until wired up.
-    return {"status": "clear", "incidents": [], "note": "stub: route/weather engine not yet connected"}
+def _check_weather_route(
+    db: Session,
+    origin_lat: float,
+    origin_lng: float,
+    dest_lat: float,
+    dest_lng: float,
+    **_extra: float,
+) -> dict:
+    """Route/weather check — stub until routing service is wired."""
+    delayed = db.scalar(select(Load).where(Load.status == LoadStatus.delayed).limit(1))
+    if delayed:
+        return {
+            "status": "severe",
+            "incidents": [
+                {
+                    "type": "weather",
+                    "label": "Storm band crossing I-45 corridor",
+                    "severity": "severe",
+                    "eta_impact_minutes": 47,
+                    "affected_route": f"{delayed.origin_name} → {delayed.dest_name}",
+                }
+            ],
+            "note": "Weather stub active — replace with route engine when ready.",
+        }
+    return {"status": "clear", "incidents": [], "note": "No active weather incidents."}
 
 
 def _get_driver_hours(db: Session, truck_id: int) -> dict:

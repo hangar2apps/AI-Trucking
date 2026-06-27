@@ -14,8 +14,9 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: `${PRODUCT_NAME} — Fleet Management Platform`,
-  description: "AI-powered fleet management, tracking, and operations.",
+  title: `${PRODUCT_NAME} — AI Transportation Management`,
+  description:
+    "A-TMS by Aurora Freight — AI-powered fleet management, route optimization, and autonomous operations.",
 };
 
 export default function RootLayout({

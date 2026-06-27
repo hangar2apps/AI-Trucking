@@ -19,7 +19,6 @@ function isActive(pathname: string, href: string, exact: boolean) {
 
 export function AppSidebar() {
   const pathname = usePathname();
-
   return (
     <nav className="flex h-full w-72 shrink-0 flex-col border-r border-[#1f3a63] bg-[#1A2B4A] py-5">
       <Link href="/app" className="mb-6 flex items-center gap-2 px-5">
@@ -56,17 +55,5 @@ export function AppSidebar() {
         Log out
       </Link>
     </nav>
-  );
-}
-
-export function AppHeader() {
-  return (
-    // <header className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-6 py-3">
-    //   <span className="font-semibold text-[#1A2B4A]">{PRODUCT_NAME} Control Center</span>
-    //   <Link href="/" className="text-sm text-[#0B5FFF] hover:underline">
-    //     Back to site
-    //   </Link>
-    // </header>
-    <></>
   );
 }
