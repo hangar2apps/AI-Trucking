@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import fleet, loads
+from app.routers import fleet, loads, survey
 from app.seed import seed
 
 
@@ -33,6 +33,7 @@ app.add_middleware(
 
 app.include_router(loads.router)
 app.include_router(fleet.router)
+app.include_router(survey.router)
 
 
 @app.get("/health", tags=["meta"])

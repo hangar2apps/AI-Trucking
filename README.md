@@ -52,3 +52,45 @@
   ├────────────────┼─────────────────────────────────────────────────────────────────┤
   │ Marketing ×2   │ Pitch + story + demo script + believable seed data + email copy │
   └────────────────┴─────────────────────────────────────────────────────────────────┘
+
+## Frontend (marketing + survey + dashboard)
+
+Branch: `feature/marketing-frontend`
+
+The `frontend/` app is a Samsara-inspired marketing site with:
+
+- **10-step survey** at `/survey/1` … `/survey/10` (feature picker, email, testimonials)
+- **Interactive demo tour** at `/demo` (10-step onboarding)
+- **Live dashboard** at `/app` wired to the FastAPI backend (fleet map, loads, proximity, trip media)
+- **Survey emails** via Resend when `RESEND_API_KEY` is set on the backend
+- **Mock fallback** if backend is offline (amber banner shown)
+
+### End-to-end test flow
+
+1. Complete survey at `/survey/1` with your real email
+2. Check inbox for welcome email (requires `RESEND_API_KEY` in backend `.env`)
+3. Take interactive demo at `/demo`
+4. Open live dashboard at `/app`
+5. View **LD-1042** under Loads → **Draft AI Email** or **Run demo climax**
+6. Trip media at `/app/trip-media` (sample dashcam video)
+
+### Run locally
+
+```bash
+# Terminal 1 — backend
+cd backend
+cp .env.example .env   # add ANTHROPIC_API_KEY + RESEND_API_KEY
+uv sync
+uv run uvicorn app.main:app --reload
+
+# Terminal 2 — frontend
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000/docs
+
+Set `NEXT_PUBLIC_PRODUCT_NAME=app` in `frontend/.env.local` (rename when brand is ready).
