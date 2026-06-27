@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Logistics Control Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="control-center" aria-label="Logistics Control Center">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Autonomous freight operations</p>
+          <h1>Logistics Control Center</h1>
+          <p class="subhead">Live shipment map</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="resetView" type="button" aria-label="Center map">
+            <span aria-hidden="true">O</span>
+          </button>
+          <button class="primary-action" id="runDemo" type="button">
+            <span class="play-dot" aria-hidden="true"></span>
+            <span>Run hero moment</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="map-stage" aria-label="Live shipment map">
+        <div class="map-frame">
+          <div id="liveMap" aria-label="Satellite logistics map"></div>
+
+          <div class="legend" aria-label="Map legend">
+            <div><span class="legend-dot blue"></span>In Transit</div>
+            <div><span class="legend-dot silver"></span>Pending</div>
+            <div><span class="legend-dot rose"></span>Incident / Delay</div>
+            <div><span class="legend-dot green"></span>Delivered</div>
+          </div>
+
+          <div class="map-controls" aria-hidden="true">
+            <button id="weatherToggle" class="three-d active" type="button">WX</button>
+            <button id="pitchToggle" class="three-d" type="button">SAT</button>
+            <button id="zoomIn" type="button">+</button>
+            <button id="zoomOut" type="button">-</button>
+          </div>
+
+          <div class="radar-legend" id="radarLegend" aria-label="Weather radar legend">
+            <span class="radar-legend-title">Precipitation radar</span>
+            <div class="radar-scale"></div>
+            <div class="radar-scale-labels"><em>Light</em><em>Moderate</em><em>Severe</em></div>
+          </div>
+
+          <div class="wx-hud" id="wxHud" aria-live="polite">
+            <div class="wx-hud-head">
+              <span class="wx-dot"></span>
+              <strong id="wxStatus">Weather routing active</strong>
+            </div>
+            <p id="wxDetail">Scanning corridors for the clearest lane.</p>
+            <div class="wx-metrics">
+              <div><span>Active lane</span><strong id="wxLane">&mdash;</strong></div>
+              <div><span>Hazards avoided</span><strong id="wxAvoided">0</strong></div>
+              <div><span>Added miles</span><strong id="wxAdded">0 mi</strong></div>
+            </div>
+            <button class="wx-follow" id="wxFollow" type="button">Zoom to truck</button>
+          </div>
+
+          <div class="weather-card" id="weatherCard">
+            <span class="weather-pulse"></span>
+            <div>
+              <strong id="weatherTitle">Route clear</strong>
+              <span id="weatherCopy">Monitoring I-44 and I-55 corridors</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tracking-strip" aria-label="GPS truck tracking">
+          <div class="tracking-heading">
+            <div>
+              <p class="eyebrow">GPS tracking</p>
+              <h2>Road-snapped routes</h2>
+            </div>
+            <div class="tracking-actions">
+              <button id="trackAll" type="button">Track all</button>
+              <button id="streetZoom" type="button">Street zoom</button>
+            </div>
+          </div>
+          <div class="tracker-list" id="trackerList"></div>
+        </div>
+      </section>
+
+      <section class="ops-grid" aria-label="Operations dashboard">
+        <article class="agent-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Claude agent</p>
+              <h2 id="phaseTitle">Watching every load</h2>
+            </div>
+            <span class="agent-state" id="agentState">Live</span>
+          </div>
+          <p class="phase-copy" id="phaseCopy">
+            The operations brain is reading routes, ETAs, customer commitments, driver hours, and fleet availability.
+          </p>
+          <div class="timeline" id="timeline" aria-label="Automation timeline">
+            <div class="timeline-step active" data-step="monitor">
+              <span></span>
+              <p>Monitor ETA and service window</p>
+            </div>
+            <div class="timeline-step" data-step="weather">
+              <span></span>
+              <p>Weather engine flags incident</p>
+            </div>
+            <div class="timeline-step" data-step="email">
+              <span></span>
+              <p>Customer email sent proactively</p>
+            </div>
+            <div class="timeline-step" data-step="handoff">
+              <span></span>
+              <p>Nearby truck selected for handoff</p>
+            </div>
+            <div class="timeline-step" data-step="reroute">
+              <span></span>
+              <p>Load reassigned and route saved</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="email-panel" id="emailPanel" aria-label="Customer email">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Resend</p>
+              <h2>Customer update</h2>
+            </div>
+            <span class="mail-status" id="mailStatus">Queued</span>
+          </div>
+          <div class="mail-card">
+            <div class="mail-meta">
+              <span>To: operations@northstar-auto.example</span>
+              <span id="mailTime">--:--</span>
+            </div>
+            <h3 id="mailSubject">Status update pending</h3>
+            <p id="mailBody">
+              The agent will notify the customer before the delivery risk becomes visible on their side.
+            </p>
+          </div>
+        </article>
+
+        <article class="tool-panel" aria-label="AI tool calls">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Tool use</p>
+              <h2>Decision trace</h2>
+            </div>
+            <span class="agent-state amber" id="riskPill">No risk</span>
+          </div>
+          <div class="tool-log" id="toolLog">
+            <div class="tool-call complete">
+              <span>get_loads</span>
+              <strong>4 active</strong>
+            </div>
+            <div class="tool-call complete">
+              <span>compute_eta</span>
+              <strong>On time</strong>
+            </div>
+            <div class="tool-call">
+              <span>check_weather_route</span>
+              <strong>Ready</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="fleet-panel" aria-label="Fleet metrics">
+          <div class="metric-card">
+            <span>Active loads</span>
+            <strong id="activeLoads">4</strong>
+          </div>
+          <div class="metric-card">
+            <span>Efficiency</span>
+            <strong id="efficiency">92%</strong>
+          </div>
+          <div class="metric-card accent">
+            <span>SLA rescued</span>
+            <strong id="savedSla">0</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="load-section" aria-label="Shipment table">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Fleet board</p>
+            <h2>Loads in motion</h2>
+          </div>
+          <span class="timestamp" id="timestamp">12:02:08 CT</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Payload</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Operator</th>
+                <th>ETA</th>
+              </tr>
+            </thead>
+            <tbody id="loadsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
