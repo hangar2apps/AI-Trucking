@@ -13,11 +13,14 @@ import {
   Truck as TruckIcon,
   Wrench,
 } from "lucide-react";
+import { FleetMap } from "@/components/dashboard/FleetMap";
 import { MockDataBanner } from "@/components/dashboard/MockDataBanner";
+import { formatTruckStatus, truckStatusColor } from "@/components/dashboard/truck-utils";
 import { TourCoach } from "@/components/tour/TourCoach";
 import { tourSteps } from "@/lib/tour-steps";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { getTrucks, isUsingMockData } from "@/lib/data-provider";
+import { DEMO_ROUTE } from "@/lib/mock-data";
 import type { Truck } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -124,24 +127,17 @@ export function DemoTourClient() {
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-[#1A2B4A]">{featured.name}</span>
-                <span className="rounded bg-[#22C55E] px-2 py-0.5 text-xs text-white capitalize">
-                  {featured.status.replace("_", " ")}
+                <span
+                  className={cn(
+                    "rounded px-2 py-0.5 text-xs capitalize text-white",
+                    truckStatusColor(featured.status)
+                  )}
+                >
+                  {formatTruckStatus(featured.status)}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-[#6B7280]">
-                {featured.current_lat?.toFixed(2)}, {featured.current_lng?.toFixed(2)}
-              </p>
-              <p className="text-xs text-[#6B7280]">{featured.driver_name}</p>
+              <p className="mt-1 text-xs text-[#6B7280]">{featured.driver_name}</p>
             </div>
-          )}
-
-          {trucks.slice(0, 3).map((t) =>
-            t.id === featured?.id ? null : (
-              <div key={t.id} className="mb-2 rounded-lg border border-[#E5E7EB] p-2 opacity-60">
-                <p className="text-sm font-medium">{t.name}</p>
-                <p className="text-xs text-[#6B7280]">{t.driver_name}</p>
-              </div>
-            )
           )}
 
           {(highlight === "diagnostics" || step >= 5) && (
@@ -188,48 +184,42 @@ export function DemoTourClient() {
           )}
         </aside>
 
-        <main className="relative flex-1">
-          <div
-            className={cn(
-              "absolute inset-0 bg-gradient-to-br from-[#E8F4FC] via-[#F0FDF4] to-[#DBEAFE]",
-              highlight === "map" || highlight === "map-click"
-                ? "ring-4 ring-[#0B5FFF]/30 ring-inset"
-                : ""
-            )}
-          >
-            {featured && (
-              <>
-                <div className="absolute top-[40%] left-[45%] h-4 w-4 rounded-full bg-[#22C55E] ring-4 ring-white" />
-                <div className="absolute top-[38%] left-[42%] rounded bg-[#1A2B4A] px-2 py-1 text-xs text-white">
-                  {featured.name}
-                </div>
-              </>
-            )}
-            {(highlight === "traffic" || step >= 2) && (
-              <div className="absolute top-4 right-4 rounded-lg bg-white/90 p-4 shadow">
-                <p className="mb-2 text-xs font-semibold uppercase">Overlay</p>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" defaultChecked readOnly />
-                  Traffic
-                </label>
-              </div>
-            )}
-            {(highlight === "card" || step >= 4) && featured && (
-              <div className="absolute top-20 right-8 w-56 rounded-lg bg-white p-3 shadow-lg">
-                <video
-                  className="mb-2 h-24 w-full rounded object-cover"
-                  src="/demo/dashcam.mp4"
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                />
-                <p className="font-semibold">{featured.name}</p>
-                <p className="text-xs text-[#6B7280]">{featured.driver_name}</p>
-                <p className="text-xs text-[#6B7280]">Fuel 67%</p>
-              </div>
-            )}
-          </div>
+        <main
+          className={cn(
+            "relative flex-1",
+            (highlight === "map" || highlight === "map-click") &&
+              "ring-4 ring-[#0B5FFF]/30 ring-inset"
+          )}
+        >
+          <FleetMap
+            trucks={trucks}
+            selectedId={featured?.id}
+            onSelect={setFeatured}
+            route={DEMO_ROUTE}
+          />
+
+          {(highlight === "traffic" || step >= 2) && (
+            <div className="absolute top-4 right-4 z-10 rounded-lg bg-white/90 p-4 shadow">
+              <p className="mb-2 text-xs font-semibold uppercase">Overlay</p>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" defaultChecked readOnly />
+                Traffic
+              </label>
+            </div>
+          )}
+          {(highlight === "card" || step >= 4) && (
+            <div className="absolute top-20 right-8 z-10 w-56 rounded-lg bg-white p-3 shadow-lg">
+              <video
+                className="h-24 w-full rounded object-cover"
+                src="/demo/dashcam.mp4"
+                muted
+                loop
+                autoPlay
+                playsInline
+              />
+              <p className="mt-2 text-xs text-[#6B7280]">Live dashcam preview</p>
+            </div>
+          )}
 
           <TourCoach
             step={step}

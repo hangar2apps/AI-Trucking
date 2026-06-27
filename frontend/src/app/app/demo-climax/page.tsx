@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import {
   DEMO_LOAD_REFERENCE,
   draftEmail,
+  findBackupTruck,
   findDemoLoad,
   getLoad,
   isUsingMockData,
 } from "@/lib/data-provider";
-import type { EmailDraftResponse, Load, LoadDetail } from "@/lib/api";
+import type { EmailDraftResponse, Load, LoadDetail, Truck } from "@/lib/api";
 import { MockDataBanner } from "@/components/dashboard/MockDataBanner";
+import { formatTruckStatus } from "@/components/dashboard/truck-utils";
 
 const STEPS = [
   "Detecting delayed shipment...",
@@ -23,6 +25,7 @@ const STEPS = [
 export default function DemoClimaxPage() {
   const [phase, setPhase] = useState(0);
   const [load, setLoad] = useState<LoadDetail | null>(null);
+  const [backupTruck, setBackupTruck] = useState<Truck | null>(null);
   const [draft, setDraft] = useState<EmailDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mockMode, setMockMode] = useState(false);
@@ -70,6 +73,8 @@ export default function DemoClimaxPage() {
 
         setPhase(3);
         await pause(700);
+        const backup = await findBackupTruck();
+        setBackupTruck(backup ?? null);
         setPhase(4);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Demo failed");
@@ -122,13 +127,32 @@ export default function DemoClimaxPage() {
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="rounded-lg border bg-white p-4">
               <h2 className="font-semibold">{load.reference}</h2>
-              <p className="text-sm text-red-600 capitalize">{load.status.replace("_", " ")}</p>
-              <p className="mt-2 text-sm">{load.origin_name} → {load.dest_name}</p>
+              <p className="text-sm capitalize text-red-600">
+                {load.status.replace("_", " ")}
+              </p>
+              <p className="mt-2 text-sm">
+                {load.origin_name} → {load.dest_name}
+              </p>
+              {load.truck && (
+                <p className="mt-2 text-xs text-[#6B7280]">
+                  Assigned: {load.truck.name} — {load.truck.driver_name}
+                </p>
+              )}
             </div>
             <div className="rounded-lg border bg-white p-4">
               <h2 className="font-semibold">Backup available</h2>
-              <p className="text-sm text-[#0B5FFF]">Truck 23 — Lena Ortiz</p>
-              <p className="text-xs text-[#6B7280]">Available near the lane</p>
+              {backupTruck ? (
+                <>
+                  <p className="text-sm text-[#0B5FFF]">
+                    {backupTruck.name} — {backupTruck.driver_name}
+                  </p>
+                  <p className="text-xs capitalize text-[#6B7280]">
+                    {formatTruckStatus(backupTruck.status)} near the lane
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[#6B7280]">Searching fleet...</p>
+              )}
             </div>
           </div>
         )}
@@ -143,9 +167,7 @@ export default function DemoClimaxPage() {
           </div>
         )}
 
-        {error && (
-          <p className="mt-4 text-sm text-amber-700">{error}</p>
-        )}
+        {error && <p className="mt-4 text-sm text-amber-700">{error}</p>}
 
         {phase >= 4 && (
           <div className="mt-8 flex gap-4">

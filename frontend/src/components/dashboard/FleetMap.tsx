@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { Truck as TruckIcon } from "lucide-react";
 import type { Truck } from "@/lib/api";
 import { boundsFromPoints, projectToPercent } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { formatTruckStatus, truckStatusColor, TruckDetailsTooltip } from "./truck-utils";
 
 interface FleetMapProps {
   trucks: Truck[];
@@ -21,6 +24,8 @@ export function FleetMap({
   radiusMeters,
   route,
 }: FleetMapProps) {
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+
   const truckPoints = trucks
     .filter((t) => t.current_lat != null && t.current_lng != null)
     .map((t) => ({ lat: t.current_lat!, lng: t.current_lng! }));
@@ -53,7 +58,11 @@ export function FleetMap({
       </svg>
 
       {routePath && (
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
           <polyline
             points={routePath}
             fill="none"
@@ -83,33 +92,30 @@ export function FleetMap({
         if (truck.current_lat == null || truck.current_lng == null) return null;
         const pos = projectToPercent(truck.current_lat, truck.current_lng, bounds);
         const isSelected = truck.id === selectedId;
+        const isHovered = truck.id === hoveredId;
 
         return (
           <button
             key={truck.id}
             type="button"
             onClick={() => onSelect?.(truck)}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
+            onMouseEnter={() => setHoveredId(truck.id)}
+            onMouseLeave={() => setHoveredId(null)}
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+            aria-label={`${truck.name}, ${formatTruckStatus(truck.status)}`}
           >
+            {(isHovered || isSelected) && <TruckDetailsTooltip truck={truck} />}
             <div
               className={cn(
-                "h-4 w-4 rounded-full ring-4 ring-white",
-                truck.status === "available"
-                  ? "bg-[#0B5FFF]"
-                  : truck.status === "en_route"
-                    ? "bg-[#22C55E]"
-                    : "bg-[#9CA3AF]"
-              )}
-            />
-            <span
-              className={cn(
-                "absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-2 py-0.5 text-xs text-white",
-                isSelected ? "bg-[#0B5FFF]" : "bg-[#1A2B4A]"
+                "flex h-10 w-10 items-center justify-center rounded-full ring-4 ring-white shadow-md transition-transform",
+                truckStatusColor(truck.status),
+                (isHovered || isSelected) && "scale-110",
+                isSelected && "ring-[#0B5FFF]"
               )}
             >
-              {truck.name}
-            </span>
+              <TruckIcon className="h-5 w-5 text-white" strokeWidth={2.25} />
+            </div>
           </button>
         );
       })}

@@ -49,15 +49,6 @@ export default function FleetMapPage() {
             onSelect={setSelected}
             route={DEMO_ROUTE}
           />
-          {selected && (
-            <div className="absolute bottom-4 left-4 rounded-lg bg-white p-4 shadow-lg">
-              <p className="font-semibold text-[#1A2B4A]">{selected.name}</p>
-              <p className="text-sm text-[#6B7280]">{selected.driver_name}</p>
-              <p className="text-xs capitalize text-[#6B7280]">
-                Status: {selected.status.replace("_", " ")}
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </>

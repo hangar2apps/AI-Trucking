@@ -59,4 +59,13 @@ export async function findDemoLoad(): Promise<Load | undefined> {
   return loads.find((l) => l.reference === DEMO_LOAD_REFERENCE) ?? loads[0];
 }
 
+export async function findBackupTruck(): Promise<Truck | undefined> {
+  const trucks = await getTrucks();
+  return (
+    trucks.find((t) => t.name === "Truck 23") ??
+    trucks.find((t) => t.status === "available") ??
+    undefined
+  );
+}
+
 export { DEMO_LOAD_REFERENCE };

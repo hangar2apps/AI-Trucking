@@ -2,6 +2,7 @@
 
 import type { Truck } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { formatTruckStatus, truckStatusColor } from "./truck-utils";
 
 interface AssetListProps {
   trucks: Truck[];
@@ -52,15 +53,11 @@ export function AssetList({
               <span className="font-medium text-[#1A2B4A]">{truck.name}</span>
               <span
                 className={cn(
-                  "rounded px-2 py-0.5 text-xs text-white",
-                  truck.status === "en_route"
-                    ? "bg-[#22C55E]"
-                    : truck.status === "available"
-                      ? "bg-[#0B5FFF]"
-                      : "bg-[#9CA3AF]"
+                  "rounded px-2 py-0.5 text-xs capitalize text-white",
+                  truckStatusColor(truck.status)
                 )}
               >
-                {truck.status.replace("_", " ")}
+                {formatTruckStatus(truck.status)}
               </span>
             </div>
             <p className="mt-1 text-xs text-[#6B7280]">{truck.driver_name}</p>
