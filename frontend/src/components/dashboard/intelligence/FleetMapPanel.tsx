@@ -35,7 +35,17 @@ export function FleetMapPanel() {
   };
 
   useEffect(() => {
-    refreshFleet().finally(() => setLoading(false));
+    let cancelled = false;
+    void (async () => {
+      try {
+        await refreshFleet();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

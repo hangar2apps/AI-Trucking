@@ -165,12 +165,24 @@ function WeatherPanel() {
 
   useEffect(() => {
     if (!selected || mockMode) return;
-    setChecking(true);
-    setError(null);
-    checkWeatherForLoad(selected)
-      .then(setWeather)
-      .catch((e) => setError(e instanceof Error ? e.message : "Weather check failed"))
-      .finally(() => setChecking(false));
+    let cancelled = false;
+    void (async () => {
+      setChecking(true);
+      setError(null);
+      try {
+        const result = await checkWeatherForLoad(selected);
+        if (!cancelled) setWeather(result);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Weather check failed");
+        }
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [selected, mockMode]);
 
   const route =
@@ -265,20 +277,10 @@ function WeatherPanel() {
 function IntelligenceContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const [tab, setTab] = useState<TabId>(
-    tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "map"
+  const [tab, setTab] = useState<TabId>(() =>
+    tabParam && tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "map"
   );
-  const [mockMode, setMockMode] = useState(false);
-
-  useEffect(() => {
-    setMockMode(isUsingMockData());
-  }, []);
-
-  useEffect(() => {
-    if (tabParam && tabs.some((t) => t.id === tabParam)) {
-      setTab(tabParam as TabId);
-    }
-  }, [tabParam]);
+  const mockMode = isUsingMockData();
 
   return (
     <>

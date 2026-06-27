@@ -37,30 +37,26 @@ async function saveToSupabase(
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("survey_leads")
-    .insert({
-      email: payload.email,
-      phone: payload.phone || null,
-      company_size: payload.company_size,
-      industry: payload.industry,
-      fleet_size: payload.fleet_size,
-      features: payload.features,
-      pain_point: payload.pain_point,
-      current_tools: payload.current_tools || null,
-      timeline: payload.timeline,
-      role: payload.role,
-      consent: payload.consent,
-      source,
-    })
-    .select("id")
-    .single();
+  const { error } = await supabase.from("survey_leads").insert({
+    email: payload.email,
+    phone: payload.phone || null,
+    company_size: payload.company_size,
+    industry: payload.industry,
+    fleet_size: payload.fleet_size,
+    features: payload.features,
+    pain_point: payload.pain_point,
+    current_tools: payload.current_tools || null,
+    timeline: payload.timeline,
+    role: payload.role,
+    consent: payload.consent,
+    source,
+  });
 
   if (error) {
     throw new Error(`Supabase save failed: ${error.message}`);
   }
 
-  return data.id as string;
+  return null;
 }
 
 async function logEmailToSupabase(
