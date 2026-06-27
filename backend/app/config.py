@@ -30,8 +30,12 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     from_email: str = "onboarding@resend.dev"
     frontend_url: str = "http://localhost:3000"
+    demo_email_to: str = ""
 
-    # Opus 4.8 for the reasoning brain, Sonnet 4.6 for customer emails.
+    sim_interval_seconds: float = 3.0
+    sim_speed_mph: float = 55.0
+    sim_minutes_per_tick: float = 6.0
+
     reasoning_model: str = "claude-opus-4-8"
     email_model: str = "claude-sonnet-4-6"
 

@@ -1,28 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { testimonials } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-export function TestimonialSidebar() {
+function TestimonialCard({ className }: { className?: string }) {
   const [index, setIndex] = useState(0);
   const t = testimonials[index];
 
   return (
-    <aside className="hidden w-[340px] shrink-0 flex-col justify-between bg-[#E8F4FC] p-8 lg:flex xl:w-[400px]">
+    <div className={cn("flex flex-col justify-between", className)}>
       <div>
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#0B5FFF]/20 text-lg font-semibold text-[#0B5FFF]">
+        <Quote className="mb-4 h-8 w-8 text-[#0B5FFF]/40" />
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#0B5FFF]/15 text-sm font-semibold text-[#0B5FFF]">
           {t.avatar}
         </div>
-        <blockquote className="font-serif text-lg leading-relaxed text-[#1A2B4A]">
+        <blockquote className="font-serif text-base leading-relaxed text-[#1A2B4A] sm:text-lg">
           &ldquo;{t.quote}&rdquo;
         </blockquote>
-        <p className="mt-6 text-xs font-bold tracking-wide text-[#1A2B4A] uppercase">
-          {t.name}, {t.title}
+        <p className="mt-5 text-xs font-bold tracking-wide text-[#1A2B4A] uppercase">
+          {t.name}
         </p>
+        <p className="text-xs text-[#6B7280]">{t.title}</p>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="mt-6 flex justify-end gap-2">
         <button
           type="button"
           onClick={() => setIndex((i) => (i === 0 ? testimonials.length - 1 : i - 1))}
@@ -34,14 +36,28 @@ export function TestimonialSidebar() {
         <button
           type="button"
           onClick={() => setIndex((i) => (i + 1) % testimonials.length)}
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full bg-[#0B5FFF] text-white hover:bg-[#0847CC]"
-          )}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0B5FFF] text-white hover:bg-[#0847CC]"
           aria-label="Next testimonial"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+    </div>
+  );
+}
+
+export function TestimonialSidebar() {
+  return (
+    <aside className="hidden w-[min(100%,22rem)] shrink-0 bg-[#E8F4FC] p-6 lg:block xl:w-[26rem] xl:p-10">
+      <TestimonialCard />
     </aside>
+  );
+}
+
+export function TestimonialMobile() {
+  return (
+    <div className="border-t border-[#E5E7EB] bg-[#E8F4FC] p-6 lg:hidden">
+      <TestimonialCard />
+    </div>
   );
 }

@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { LandingPage } from "@/components/marketing/landing/LandingPage";
 
 export default function HomePage() {
-  redirect("/survey/1");
+  return <LandingPage />;
 }

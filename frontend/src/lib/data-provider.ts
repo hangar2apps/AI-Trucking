@@ -1,10 +1,15 @@
 import {
   api,
+  type AgentRunResult,
+  type ComputeEtaResult,
   type EmailDraftResponse,
   type EmailDraftSendResponse,
+  type FleetEvent,
   type Load,
   type LoadDetail,
+  type SimStatus,
   type Truck,
+  type WeatherRouteResult,
 } from "./api";
 import {
   DEMO_LOAD_REFERENCE,
@@ -73,6 +78,49 @@ export async function findBackupTruck(): Promise<Truck | undefined> {
     trucks.find((t) => t.status === "available") ??
     undefined
   );
+}
+
+export async function getEvents(sinceId = 0): Promise<FleetEvent[]> {
+  return api.getEvents(sinceId);
+}
+
+export async function getSimStatus(): Promise<SimStatus> {
+  return api.getSimStatus();
+}
+
+export async function startSimulation(): Promise<SimStatus> {
+  return api.startSim();
+}
+
+export async function stopSimulation(): Promise<SimStatus> {
+  return api.stopSim();
+}
+
+export async function checkWeatherForLoad(load: Load): Promise<WeatherRouteResult> {
+  return api.checkWeatherRoute({
+    origin_lat: load.origin_lat,
+    origin_lng: load.origin_lng,
+    dest_lat: load.dest_lat,
+    dest_lng: load.dest_lng,
+  });
+}
+
+export async function computeEtaForLoad(
+  load: Load,
+  truckId: number
+): Promise<ComputeEtaResult> {
+  return api.computeEta({
+    truck_id: truckId,
+    dest_lat: load.dest_lat,
+    dest_lng: load.dest_lng,
+  });
+}
+
+export async function runAgentBrain(
+  situation: string,
+  dryRun = true
+): Promise<AgentRunResult> {
+  return api.runAgent(situation, dryRun);
 }
 
 export { DEMO_LOAD_REFERENCE };

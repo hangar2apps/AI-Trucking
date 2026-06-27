@@ -42,3 +42,18 @@ export function boundsFromPoints(points: { lat: number; lng: number }[]) {
     maxLng: Math.max(...points.map((p) => p.lng)) + 0.3,
   };
 }
+
+/** Interpolate origin → destination for map polylines (from backend load coords). */
+export function routePolyline(
+  origin: { lat: number; lng: number },
+  dest: { lat: number; lng: number },
+  steps = 10
+): { lat: number; lng: number }[] {
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps;
+    return {
+      lat: origin.lat + (dest.lat - origin.lat) * t,
+      lng: origin.lng + (dest.lng - origin.lng) * t,
+    };
+  });
+}

@@ -106,6 +106,7 @@ class Event(Base):
     summary: Mapped[str] = mapped_column(Text)
     data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+
 class Lead(Base):
     __tablename__ = "leads"
 

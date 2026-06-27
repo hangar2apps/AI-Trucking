@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import agent, events, fleet, loads, sim, survey
-from app.sim import simulator
+from app.routers import agent, events, fleet, loads, sim, survey, tools
 from app.seed import seed
+from app.sim import simulator
 
 
 @asynccontextmanager
@@ -29,7 +29,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Open CORS for the local React dashboards during the hackathon.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,6 +41,7 @@ app.include_router(fleet.router)
 app.include_router(agent.router)
 app.include_router(events.router)
 app.include_router(sim.router)
+app.include_router(tools.router)
 app.include_router(survey.router)
 
 
@@ -54,4 +54,5 @@ def health() -> dict:
         "anthropic_key_set": bool(s.anthropic_api_key),
         "email_model": s.email_model,
         "reasoning_model": s.reasoning_model,
+        "sim_running": simulator.running,
     }

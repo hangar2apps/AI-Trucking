@@ -112,6 +112,20 @@ class AgentRunResult(BaseModel):
     iterations: int
     dry_run: bool
 
+
+class WeatherRouteRequest(BaseModel):
+    origin_lat: float
+    origin_lng: float
+    dest_lat: float
+    dest_lng: float
+
+
+class ComputeEtaRequest(BaseModel):
+    truck_id: int
+    dest_lat: float
+    dest_lng: float
+
+
 # --- Survey / leads -------------------------------------------------------
 
 
@@ -139,4 +153,3 @@ class SurveySubmitResponse(BaseModel):
 class EmailDraftSendResponse(EmailDraftResponse):
     email_sent: bool
     send_message: str
-

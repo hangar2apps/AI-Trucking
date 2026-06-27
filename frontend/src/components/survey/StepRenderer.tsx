@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { FeaturePicker } from "@/components/survey/FeaturePicker";
 import type { StepConfig } from "@/lib/survey-steps";
 import { useSurveyStore } from "@/stores/survey-store";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { cn, isValidEmail } from "@/lib/utils";
 
 interface StepRendererProps {
@@ -101,8 +102,7 @@ export function StepRenderer({ config }: StepRendererProps) {
               className="mt-1 h-4 w-4 rounded border-[#E5E7EB] accent-[#0B5FFF]"
             />
             <span className="text-sm text-[#4B5563]">
-              I agree to be contacted about {process.env.NEXT_PUBLIC_PRODUCT_NAME ?? "app"}{" "}
-              products and services.
+              I agree to be contacted about {PRODUCT_NAME} products and services.
             </span>
           </label>
         </div>
