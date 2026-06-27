@@ -48,7 +48,8 @@ async function resolveOperationsAvailable(userId: string, email: string): Promis
     .eq("id", userId)
     .maybeSingle();
 
-  if (error || !data) return false;
+  if (error) return false;
+  if (!data) return false;
   return Boolean(data.operations_available);
 }
 

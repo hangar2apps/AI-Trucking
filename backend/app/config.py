@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # Seed customer addresses are fake. Set this to route all outbound mail to
     # one real inbox during demos; leave empty to use the customer's address.
     demo_email_to: str = ""
+    # Inbound address — set Reply-To on AI emails so replies land here (Resend inbound).
+    ai_inbox_email: str = "onboarding@resend.dev"
 
     frontend_url: str = "http://localhost:3000"
     company_name: str = "Aurora Freight"

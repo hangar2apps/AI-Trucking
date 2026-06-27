@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import agent, events, fleet, loads, sim, survey, tools
+from app.routers import agent, assistant, events, fleet, loads, sim, survey, tools
 from app.seed import seed
 from app.sim import simulator
 
@@ -40,6 +40,7 @@ app.add_middleware(
 app.include_router(loads.router)
 app.include_router(fleet.router)
 app.include_router(agent.router)
+app.include_router(assistant.router)
 app.include_router(events.router)
 app.include_router(sim.router)
 app.include_router(tools.router)

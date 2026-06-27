@@ -36,12 +36,31 @@ _FEATURE = {
 }
 
 
-def _send_via_resend(*, to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
+def _send_via_resend(
+    *,
+    to_email: str,
+    subject: str,
+    html_body: str,
+    reply_to: str | None = None,
+    in_reply_to: str | None = None,
+) -> tuple[bool, str]:
     settings = get_settings()
     recipient = settings.demo_email_to.strip() or to_email
 
     if not settings.resend_api_key:
         return False, "RESEND_API_KEY not configured — saved without email."
+
+    payload: dict[str, object] = {
+        "from": settings.resend_from,
+        "to": [recipient],
+        "subject": subject,
+        "html": html_body,
+    }
+    reply_addr = (reply_to or settings.ai_inbox_email or settings.from_email).strip()
+    if reply_addr:
+        payload["reply_to"] = reply_addr
+    if in_reply_to and in_reply_to.strip():
+        payload["headers"] = {"In-Reply-To": in_reply_to.strip()}
 
     try:
         response = httpx.post(
@@ -50,12 +69,7 @@ def _send_via_resend(*, to_email: str, subject: str, html_body: str) -> tuple[bo
                 "Authorization": f"Bearer {settings.resend_api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "from": settings.resend_from,
-                "to": [recipient],
-                "subject": subject,
-                "html": html_body,
-            },
+            json=payload,
             timeout=15.0,
         )
         if response.status_code in (200, 201):
@@ -127,10 +141,21 @@ def send_survey_response_email(*, payload: SurveySubmit) -> tuple[bool, str]:
     return _send_via_resend(to_email=payload.email.strip(), subject=subject, html_body=html_body)
 
 
-def send_customer_email(*, to_email: str, subject: str, body: str) -> tuple[bool, str]:
+def send_customer_email(
+    *,
+    to_email: str,
+    subject: str,
+    body: str,
+    in_reply_to: str | None = None,
+) -> tuple[bool, str]:
     """Send a plain-text customer email (typically AI-drafted) via Resend."""
     html_body = _text_to_html(body)
-    return _send_via_resend(to_email=to_email, subject=subject, html_body=html_body)
+    return _send_via_resend(
+        to_email=to_email,
+        subject=subject,
+        html_body=html_body,
+        in_reply_to=in_reply_to,
+    )
 
 
 # Backwards-compatible alias

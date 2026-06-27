@@ -5,6 +5,13 @@ import {
   type EmailDraftResponse,
   type EmailDraftSendResponse,
   type FleetEvent,
+  type InquiryReplyResponse,
+  type InquiryRequestPayload,
+  type InquirySendResponse,
+  type InboundProcessResponse,
+  type InboundSimulatePayload,
+  type InboxItem,
+  type InboxResponse,
   type Load,
   type LoadDetail,
   type SimStatus,
@@ -121,6 +128,28 @@ export async function runAgentBrain(
   dryRun = true
 ): Promise<AgentRunResult> {
   return api.runAgent(situation, dryRun);
+}
+
+export async function respondToInquiry(
+  payload: InquiryRequestPayload
+): Promise<InquiryReplyResponse> {
+  return api.respondToInquiry(payload);
+}
+
+export async function sendInquiryReply(
+  payload: InquiryRequestPayload
+): Promise<InquirySendResponse> {
+  return api.sendInquiryReply(payload);
+}
+
+export async function simulateInboundEmail(
+  payload: InboundSimulatePayload
+): Promise<InboundProcessResponse> {
+  return api.simulateInboundEmail(payload);
+}
+
+export async function getAssistantInbox(limit = 40): Promise<InboxResponse> {
+  return api.getAssistantInbox(limit);
 }
 
 export { DEMO_LOAD_REFERENCE };

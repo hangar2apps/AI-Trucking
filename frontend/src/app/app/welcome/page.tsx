@@ -29,10 +29,15 @@ export default function WelcomePendingPage() {
                 Operations not available yet
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-[#6B7280]">
-                Hi {user?.name ?? "there"} — your {PRODUCT_NAME} account is active, but live fleet
-                data, analytics, and intelligence tools are enabled only after we connect your
-                operations. New sign-ups start here; once your fleet is onboarded, sign in again to
-                open the full dashboard.
+                Hi {user?.name ?? "there"} — your {PRODUCT_NAME} account is active. Live fleet
+                data (loads, map, trucks) comes from the operations API and is shared across
+                provisioned pilot accounts — not from your signup form alone.
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-[#6B7280]">
+                New sign-ups land here until we flip{" "}
+                <code className="rounded bg-[#F3F4F6] px-1">operations_available</code> on your
+                profile. If you were invited before launch, sign out and sign back in — or ask us
+                to enable your account.
               </p>
             </div>
             <ul className="space-y-3 text-sm text-[#4B5563]">

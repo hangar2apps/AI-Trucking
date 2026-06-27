@@ -144,6 +144,87 @@ export interface AgentRunResult {
   dry_run: boolean;
 }
 
+export interface InquiryReplyResponse {
+  matched_load_id: number | null;
+  load_reference: string | null;
+  recipient_name: string;
+  recipient_email: string;
+  recipient_role: string;
+  inferred_intent: string;
+  confidence: string;
+  needs_clarification: boolean;
+  clarifying_questions: string[];
+  reply_subject: string;
+  reply_body: string;
+  internal_summary: string;
+  model: string;
+}
+
+export interface InquirySendResponse extends InquiryReplyResponse {
+  email_sent: boolean;
+  send_message: string;
+}
+
+export interface InquiryRequestPayload {
+  from_email: string;
+  role?: "customer" | "driver";
+  message: string;
+  sender_name?: string;
+  subject?: string;
+}
+
+export interface InboundSimulatePayload {
+  from_email: string;
+  body: string;
+  subject?: string;
+  sender_name?: string;
+  to_email?: string;
+  auto_send?: boolean;
+}
+
+export interface InboundProcessResponse {
+  event_id: number;
+  from_email: string;
+  from_name: string;
+  to_email: string;
+  subject: string;
+  body: string;
+  inferred_role: string;
+  matched_load_id: number | null;
+  load_reference: string | null;
+  inferred_intent: string;
+  confidence: string;
+  needs_clarification: boolean;
+  clarifying_questions: string[];
+  reply_subject: string;
+  reply_body: string;
+  internal_summary: string;
+  auto_reply_sent: boolean;
+  send_message: string;
+  model: string;
+}
+
+export interface InboxItem {
+  id: number;
+  created_at: string;
+  from_email: string;
+  from_name: string;
+  subject: string;
+  body_preview: string;
+  load_reference: string | null;
+  inferred_intent: string | null;
+  inferred_role: string | null;
+  auto_reply_sent: boolean | null;
+  send_message: string | null;
+  reply_subject: string | null;
+  reply_body: string | null;
+}
+
+export interface InboxResponse {
+  items: InboxItem[];
+  ai_inbox_email: string;
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
@@ -205,4 +286,21 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ situation, dry_run: dryRun }),
     }),
+  respondToInquiry: (payload: InquiryRequestPayload) =>
+    fetchJson<InquiryReplyResponse>("/assistant/inquiry", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  sendInquiryReply: (payload: InquiryRequestPayload) =>
+    fetchJson<InquirySendResponse>("/assistant/inquiry/send", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  simulateInboundEmail: (payload: InboundSimulatePayload) =>
+    fetchJson<InboundProcessResponse>("/assistant/inbound/simulate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getAssistantInbox: (limit = 40) =>
+    fetchJson<InboxResponse>(`/assistant/inbox?limit=${limit}`),
 };
