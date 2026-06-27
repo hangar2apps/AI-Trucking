@@ -1,11 +1,12 @@
-"""Smoke-test the thinnest AI vertical end to end.
+"""Smoke-test the email vertical against the live database.
 
-Usage (needs ANTHROPIC_API_KEY in env or .env):
+Usage (needs ANTHROPIC_API_KEY + DATABASE_URL in .env):
     uv run python scripts/smoke_email.py            # defaults to load LD-1042
     uv run python scripts/smoke_email.py LD-1043
 
-Prints the drafted customer email so you can eyeball the brain before wiring
-it into the dashboard.
+Reads the load from whatever DATABASE_URL points at (Supabase) and prints the
+drafted customer email. Does not create or seed — the database is the source
+of truth (see sql/seed_supabase.sql).
 """
 
 from __future__ import annotations
@@ -16,9 +17,8 @@ from sqlalchemy import select
 
 from app.agent.email_agent import draft_status_email
 from app.config import get_settings
-from app.db import Base, SessionLocal, engine
+from app.db import SessionLocal
 from app.models import Load
-from app.seed import seed
 
 
 def main() -> None:
@@ -27,12 +27,10 @@ def main() -> None:
     if not get_settings().anthropic_api_key:
         sys.exit("ANTHROPIC_API_KEY is not set — add it to .env first.")
 
-    Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
-        seed(db)
         load = db.scalar(select(Load).where(Load.reference == reference))
         if load is None:
-            sys.exit(f"No load {reference!r} found.")
+            sys.exit(f"No load {reference!r} found — is the database seeded?")
 
         print(f"Drafting email for {reference} ({load.status.value})...\n")
         draft = draft_status_email(load)

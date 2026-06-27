@@ -17,6 +17,18 @@ class CustomerOut(BaseModel):
     phone: str | None = None
 
 
+class EventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    kind: str
+    load_id: int | None = None
+    truck_id: int | None = None
+    summary: str
+    data: dict | None = None
+
+
 class TruckOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,3 +85,29 @@ class EmailDraftResponse(BaseModel):
     to_name: str
     model: str
     draft: EmailDraft
+
+
+# --- Agent brain I/O ------------------------------------------------------
+
+
+class AgentStep(BaseModel):
+    """One entry in the brain's transcript (for the CS dashboard / demo)."""
+
+    kind: str  # "thinking" | "text" | "tool_call" | "tool_result"
+    text: str | None = None
+    tool: str | None = None
+    tool_input: dict | None = None
+    tool_output: dict | None = None
+
+
+class AgentRunRequest(BaseModel):
+    situation: str
+    # Default to dry_run: the brain plans reassignments/emails without committing.
+    dry_run: bool = True
+
+
+class AgentRunResult(BaseModel):
+    final_message: str
+    steps: list[AgentStep]
+    iterations: int
+    dry_run: bool

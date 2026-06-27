@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -85,3 +85,22 @@ class Load(Base):
     commodity: Mapped[str | None] = mapped_column(String(120), nullable=True)
     weight_lbs: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Event(Base):
+    """An action the system took, for the map + CS dashboard to poll.
+
+    The reroute animation keys off `kind == "reassignment"`; the CS activity
+    log reads `summary`. `data` carries the structured payload (truck ids,
+    destination, message id).
+    """
+
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    kind: Mapped[str] = mapped_column(String(40))  # reassignment | email_sent | ...
+    load_id: Mapped[int | None] = mapped_column(ForeignKey("loads.id"), nullable=True)
+    truck_id: Mapped[int | None] = mapped_column(ForeignKey("trucks.id"), nullable=True)
+    summary: Mapped[str] = mapped_column(Text)
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)

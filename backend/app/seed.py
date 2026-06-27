@@ -64,8 +64,8 @@ def seed(db: Session) -> None:
             name="Truck 08",
             driver_name="Marcus Bell",
             status=TruckStatus.en_route,
-            current_lat=30.27,
-            current_lng=-97.74,  # Austin area
+            current_lat=29.90,
+            current_lng=-98.10,  # mid-lane San Antonio -> Austin
             capacity_lbs=42000,
         ),
         Truck(
