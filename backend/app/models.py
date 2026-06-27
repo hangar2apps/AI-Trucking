@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -85,3 +85,21 @@ class Load(Base):
     commodity: Mapped[str | None] = mapped_column(String(120), nullable=True)
     weight_lbs: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Lead(Base):
+    __tablename__ = "leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    company_size: Mapped[str] = mapped_column(String(40))
+    industry: Mapped[str] = mapped_column(String(80))
+    fleet_size: Mapped[str] = mapped_column(String(40))
+    features: Mapped[list] = mapped_column(JSON, default=list)
+    pain_point: Mapped[str] = mapped_column(Text)
+    current_tools: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timeline: Mapped[str] = mapped_column(String(40))
+    role: Mapped[str] = mapped_column(String(40))
+    consent: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

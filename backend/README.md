@@ -36,6 +36,7 @@ Tables are created and demo data is seeded on startup. Docs at
 - **Load** — a shipment: reference, customer, optional assigned truck, origin &
   destination (name + lat/lng), `pickup_at` / `deliver_by` / `eta`, `status`
   (pending / assigned / in_transit / delayed / delivered / cancelled).
+- **Lead** — survey submission (email, fleet info, features, consent).
 
 The seed builds the demo scenario: **LD-1042** (Dallas → Houston) is running
 ~1h45 late on Truck 17, with **Truck 23** sitting *available* near the lane —
@@ -52,6 +53,20 @@ animates the reroute).
 | POST | `/loads/{id}/draft-email` | **AI**: draft a status email for the load |
 | GET  | `/trucks` | List fleet |
 | GET  | `/customers` | List customers |
+| POST | `/survey/submit` | Save lead + send welcome email (Resend) |
+
+### Survey welcome email
+
+Set in `.env`:
+
+```
+RESEND_API_KEY=re_...
+FROM_EMAIL=onboarding@resend.dev
+FRONTEND_URL=http://localhost:3000
+PRODUCT_NAME=app
+```
+
+If `RESEND_API_KEY` is missing, the lead is still saved and the API returns `email_sent: false`.
 
 ### Try the AI vertical
 
