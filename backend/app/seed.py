@@ -7,19 +7,30 @@ the demo climax where the AI emails the customer and reassigns the backup.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Customer, Lead, Load, LoadStatus, Truck, TruckStatus
+from app.clock import utcnow
+
+from app.models import (
+    Customer,
+    Incident,
+    IncidentKind,
+    Lead,
+    Load,
+    LoadStatus,
+    Truck,
+    TruckStatus,
+)
 
 
 def seed(db: Session) -> None:
     if db.scalar(select(Load).limit(1)) is not None:
         return  # already seeded
 
-    now = datetime.now()
+    now = utcnow()
 
     customers = [
         Customer(
@@ -51,6 +62,9 @@ def seed(db: Session) -> None:
             current_lat=31.55,   # mid-lane, stalled south of Dallas
             current_lng=-96.20,
             capacity_lbs=44000,
+            hos_drive_remaining=1.5,  # nearly out of legal hours
+            hos_duty_remaining=2.0,
+            hos_since_break=7.5,
         ),
         Truck(
             name="Truck 23",
@@ -59,6 +73,9 @@ def seed(db: Session) -> None:
             current_lat=31.10,
             current_lng=-95.95,
             capacity_lbs=44000,
+            hos_drive_remaining=11.0,  # fresh
+            hos_duty_remaining=14.0,
+            hos_since_break=0.0,
         ),
         Truck(
             name="Truck 08",
@@ -67,6 +84,9 @@ def seed(db: Session) -> None:
             current_lat=29.90,
             current_lng=-98.10,  # mid-lane San Antonio -> Austin
             capacity_lbs=42000,
+            hos_drive_remaining=8.0,
+            hos_duty_remaining=11.0,
+            hos_since_break=2.0,
         ),
         Truck(
             name="Truck 31",
@@ -93,8 +113,8 @@ def seed(db: Session) -> None:
             dest_lat=29.7604,
             dest_lng=-95.3698,
             pickup_at=now - timedelta(hours=3),
-            deliver_by=now + timedelta(hours=1, minutes=30),
-            eta=now + timedelta(hours=3, minutes=15),  # ~1h45 late
+            deliver_by=now + timedelta(hours=3),
+            eta=now + timedelta(hours=4, minutes=45),  # already late on Truck 17
             status=LoadStatus.delayed,
             commodity="Electronic components",
             weight_lbs=18500,
@@ -173,5 +193,19 @@ def seed(db: Session) -> None:
         ),
     ]
     db.add_all(leads)
+
+    incidents = [
+        Incident(
+            kind=IncidentKind.weather,
+            summary="Severe storm band on I-45 near Huntsville",
+            center_lat=30.72,
+            center_lng=-95.55,
+            radius_mi=35.0,
+            severity="severe",
+            eta_impact_minutes=75,
+            active=True,
+        ),
+    ]
+    db.add_all(incidents)
 
     db.commit()

@@ -11,6 +11,7 @@
 -- ---------------------------------------------------------------------------
 -- Reset (reverse dependency order)
 -- ---------------------------------------------------------------------------
+drop table if exists incidents cascade;
 drop table if exists events cascade;
 drop table if exists leads cascade;
 drop table if exists loads cascade;
@@ -18,12 +19,14 @@ drop table if exists trucks cascade;
 drop table if exists customers cascade;
 drop type if exists loadstatus;
 drop type if exists truckstatus;
+drop type if exists incidentkind;
 
 -- ---------------------------------------------------------------------------
 -- Enum types
 -- ---------------------------------------------------------------------------
-create type truckstatus as enum ('available', 'en_route', 'maintenance', 'offline');
-create type loadstatus  as enum ('pending', 'assigned', 'in_transit', 'delayed', 'delivered', 'cancelled');
+create type truckstatus  as enum ('available', 'en_route', 'maintenance', 'offline');
+create type loadstatus   as enum ('pending', 'assigned', 'in_transit', 'delayed', 'delivered', 'cancelled');
+create type incidentkind as enum ('weather', 'accident', 'disaster');
 
 -- ---------------------------------------------------------------------------
 -- Tables
@@ -37,13 +40,16 @@ create table customers (
 );
 
 create table trucks (
-    id           serial primary key,
-    name         varchar(60)  not null,
-    driver_name  varchar(120) not null,
-    status       truckstatus  not null,
-    current_lat  float,
-    current_lng  float,
-    capacity_lbs integer
+    id                  serial primary key,
+    name                varchar(60)  not null,
+    driver_name         varchar(120) not null,
+    status              truckstatus  not null,
+    current_lat         float,
+    current_lng         float,
+    capacity_lbs        integer,
+    hos_drive_remaining float not null default 11.0,
+    hos_duty_remaining  float not null default 14.0,
+    hos_since_break     float not null default 0.0
 );
 
 create table loads (
@@ -63,7 +69,9 @@ create table loads (
     status            loadstatus not null,
     commodity         varchar(120),
     weight_lbs        integer,
-    notes             text
+    notes             text,
+    delay_notified     boolean not null default false,
+    delivered_notified boolean not null default false
 );
 
 -- Action feed for the map + CS dashboard (written by the agent's tools).
@@ -95,6 +103,20 @@ create table leads (
 );
 create index ix_leads_email on leads (email);
 
+-- Route obstructions the monitor checks (weather / accidents / disasters).
+create table incidents (
+    id                 serial primary key,
+    kind               incidentkind not null,
+    summary            varchar(255) not null,
+    center_lat         float not null,
+    center_lng         float not null,
+    radius_mi          float not null,
+    severity           varchar(20) not null,  -- watch | warning | severe
+    eta_impact_minutes integer not null default 0,
+    active             boolean not null default true,
+    created_at         timestamp not null default now()
+);
+
 -- ---------------------------------------------------------------------------
 -- Seed: customers (fresh table → ids 1,2,3)
 -- ---------------------------------------------------------------------------
@@ -104,11 +126,15 @@ insert into customers (name, company, email, phone) values
     ('Priya Raman',  'Bayou Medical Supply',   'p.raman@bayoumed.example',              null);
 
 -- Seed: trucks (fresh table → ids 1,2,3,4)
-insert into trucks (name, driver_name, status, current_lat, current_lng, capacity_lbs) values
-    ('Truck 17', 'Sam Whitfield', 'en_route',    31.55, -96.20, 44000),  -- LD-1042 carrier (stalled mid-lane)
-    ('Truck 23', 'Lena Ortiz',    'available',   31.10, -95.95, 44000),  -- the backup for the reroute
-    ('Truck 08', 'Marcus Bell',   'en_route',    29.90, -98.10, 42000),  -- mid-lane SA -> Austin
-    ('Truck 31', 'Aisha Karim',   'maintenance', 32.78, -96.80, 48000);
+-- HOS: Truck 17 is nearly out of legal hours (can't reach Houston) → forces a
+-- reassignment to the well-rested Truck 23.
+insert into trucks
+    (name, driver_name, status, current_lat, current_lng, capacity_lbs,
+     hos_drive_remaining, hos_duty_remaining, hos_since_break) values
+    ('Truck 17', 'Sam Whitfield', 'en_route',    31.55, -96.20, 44000, 1.5, 2.0, 7.5),  -- low on hours
+    ('Truck 23', 'Lena Ortiz',    'available',   31.10, -95.95, 44000, 11.0, 14.0, 0.0), -- fresh backup
+    ('Truck 08', 'Marcus Bell',   'en_route',    29.90, -98.10, 42000, 8.0, 11.0, 2.0),
+    ('Truck 31', 'Aisha Karim',   'maintenance', 32.78, -96.80, 48000, 11.0, 14.0, 0.0);
 
 -- Seed: loads
 -- LD-1042 — the demo load, running ~1h45 late (Truck 17), backup Truck 23 ready.
@@ -119,8 +145,8 @@ insert into loads
 values
     ('LD-1042', 1, 1, 'Dallas, TX', 32.7767, -96.7970, 'Houston, TX', 29.7604, -95.3698,
      now()::timestamp - interval '3 hours',
-     now()::timestamp + interval '1 hour 30 minutes',
-     now()::timestamp + interval '3 hours 15 minutes',
+     now()::timestamp + interval '3 hours',
+     now()::timestamp + interval '4 hours 45 minutes',
      'delayed', 'Electronic components', 18500,
      'Truck 17 lost ~2h to an I-45 closure near Corsicana.'),
 
@@ -155,3 +181,9 @@ values
      '["gps","dash-cams","routing","eld"]'::jsonb,
      'Cold-chain compliance and proving on-time delivery to retailers.',
      'Legacy TMS (in-house)', 'now', 'owner', true);
+
+-- Seed: incidents — a severe storm ahead of Truck 17 on the I-45 lane to Houston.
+insert into incidents
+    (kind, summary, center_lat, center_lng, radius_mi, severity, eta_impact_minutes, active)
+values
+    ('weather', 'Severe storm band on I-45 near Huntsville', 30.72, -95.55, 35.0, 'severe', 75, true);

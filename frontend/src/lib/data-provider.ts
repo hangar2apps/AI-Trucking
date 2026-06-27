@@ -2,6 +2,7 @@ import {
   api,
   type EmailDraftResponse,
   type EmailDraftSendResponse,
+  type FleetEvent,
   type Load,
   type LoadDetail,
   type Truck,
@@ -36,6 +37,10 @@ export async function getTrucks(): Promise<Truck[]> {
 
 export async function getLoads(): Promise<Load[]> {
   return withFallback(() => api.getLoads(), MOCK_LOADS);
+}
+
+export async function getEvents(sinceId = 0): Promise<FleetEvent[]> {
+  return withFallback(() => api.getEvents(sinceId), []);
 }
 
 export async function getLoad(id: number): Promise<LoadDetail> {

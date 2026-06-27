@@ -24,11 +24,16 @@ class Settings(BaseSettings):
     sim_speed_mph: float = 55.0
     sim_minutes_per_tick: float = 6.0   # simulated minutes advanced per tick
 
+    # Autonomous monitoring loop.
+    monitor_interval_seconds: float = 60.0  # how often to assess every load
+    driving_speed_mph: float = 55.0         # speed used for ETA prediction
+    # Test mode: deterministic monitor runs free; customer emails use templates
+    # instead of Claude (no Anthropic spend). Flip off for real Sonnet drafting.
+    ai_test_mode: bool = True
+
     company_name: str = "Aurora Freight"
     product_name: str = "app"
 
-    resend_api_key: str = ""
-    from_email: str = "onboarding@resend.dev"
     frontend_url: str = "http://localhost:3000"
 
     # Opus 4.8 for the reasoning brain, Sonnet 4.6 for customer emails.

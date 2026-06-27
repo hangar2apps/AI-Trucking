@@ -17,6 +17,9 @@ export interface Truck {
   current_lat: number | null;
   current_lng: number | null;
   capacity_lbs: number | null;
+  hos_drive_remaining?: number;
+  hos_duty_remaining?: number;
+  hos_since_break?: number;
 }
 
 export interface Customer {
@@ -92,6 +95,44 @@ export interface SurveySubmitResponse {
   lead_id: number;
 }
 
+export interface FleetEvent {
+  id: number;
+  created_at: string;
+  kind: string;
+  load_id: number | null;
+  truck_id: number | null;
+  summary: string;
+  data: Record<string, unknown> | null;
+}
+
+export interface SimStatus {
+  running: boolean;
+  tick_count: number;
+  interval_seconds: number;
+  minutes_per_tick: number;
+  step_miles: number;
+}
+
+export interface SimTickResult {
+  tick: number;
+  moved: { truck: string; load: string; lat: number; lng: number }[];
+  delivered: string[];
+}
+
+export interface MonitorStatus {
+  running: boolean;
+  tick_count: number;
+  interval_seconds: number;
+  test_mode: boolean;
+}
+
+export interface MonitorTickResult {
+  tick: number;
+  test_mode: boolean;
+  actions: Record<string, unknown>[];
+  reasoning: { level: string; text: string }[];
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -122,4 +163,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(answers),
     }),
+  getEvents: (sinceId = 0) =>
+    fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}`),
+  simStatus: () => fetchJson<SimStatus>("/sim/status"),
+  simTick: () => fetchJson<SimTickResult>("/sim/tick", { method: "POST" }),
+  simStart: () => fetchJson<SimStatus>("/sim/start", { method: "POST" }),
+  simStop: () => fetchJson<SimStatus>("/sim/stop", { method: "POST" }),
+  monitorStatus: () => fetchJson<MonitorStatus>("/monitor/status"),
+  monitorTick: () => fetchJson<MonitorTickResult>("/monitor/tick", { method: "POST" }),
+  monitorStart: () => fetchJson<MonitorStatus>("/monitor/start", { method: "POST" }),
+  monitorStop: () => fetchJson<MonitorStatus>("/monitor/stop", { method: "POST" }),
 };

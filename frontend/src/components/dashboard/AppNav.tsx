@@ -2,89 +2,71 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  Film,
-  Home,
-  MapPin,
-  Package,
-  PlayCircle,
-  Search,
-  Settings,
-  Truck,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, MapPin, Package, Truck } from "lucide-react";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
+import { SidebarConsole } from "@/components/dashboard/SidebarConsole";
 
 const links = [
-  { href: "/app", icon: MapPin, label: "Fleet Map" },
-  { href: "/app/loads", icon: Package, label: "Loads" },
-  { href: "/app/proximity", icon: Search, label: "Proximity" },
-  { href: "/app/trip-media", icon: Film, label: "Trip Media" },
-  { href: "/app/demo-climax", icon: PlayCircle, label: "Demo Climax" },
+  { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/app/loads", label: "Loads", icon: Package, exact: false },
+  { href: "/app/map", label: "Map", icon: MapPin, exact: false },
 ];
+
+function isActive(pathname: string, href: string, exact: boolean) {
+  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex w-14 shrink-0 flex-col items-center gap-3 border-r bg-[#1A2B4A] py-4">
-      <Link
-        href="/survey/1"
-        className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#0B5FFF] text-xs font-bold text-white"
-        title="Home"
-      >
-        a
+    <nav className="flex h-full w-72 shrink-0 flex-col border-r border-[#1f3a63] bg-[#1A2B4A] py-5">
+      <Link href="/app" className="mb-6 flex items-center gap-2 px-5">
+        <Truck className="h-5 w-5 text-[#0B5FFF]" />
+        <span className="text-sm font-bold text-white">{PRODUCT_NAME}</span>
       </Link>
-      <Link
-        href="/survey/1"
-        title="Home — start survey"
-        className="rounded-lg p-2 text-[#9CA3AF] hover:text-white"
-      >
-        <Home className="h-5 w-5" />
-      </Link>
-      {links.map(({ href, icon: Icon, label }) => (
-        <Link
-          key={href}
-          href={href}
-          title={label}
-          className={cn(
-            "rounded-lg p-2",
-            pathname === href
-              ? "bg-[#0B5FFF] text-white"
-              : "text-[#9CA3AF] hover:text-white"
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </Link>
-      ))}
-      <div className="mt-auto flex flex-col items-center gap-2">
-        <Link href="/demo" className="rounded-lg p-2 text-[#9CA3AF] hover:text-white">
-          <BarChart3 className="h-5 w-5" />
-        </Link>
-        <Link href="/survey/1" className="rounded-lg p-2 text-[#9CA3AF] hover:text-white">
-          <Settings className="h-5 w-5" />
-        </Link>
+
+      <div className="flex flex-col gap-1 px-3">
+        {links.map(({ href, label, icon: Icon, exact }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+              isActive(pathname, href, exact)
+                ? "bg-[#0B5FFF] text-white"
+                : "text-[#9CA3AF] hover:bg-[#22375c] hover:text-white"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </Link>
+        ))}
       </div>
+
+      {/* Always-visible live AI reasoning log */}
+      <SidebarConsole />
+
+      <Link
+        href="/"
+        className="mt-3 flex shrink-0 items-center gap-3 px-5 py-2 text-sm text-[#9CA3AF] transition hover:text-white"
+      >
+        <LogOut className="h-4 w-4" />
+        Log out
+      </Link>
     </nav>
   );
 }
 
 export function AppHeader() {
   return (
-    <header className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Truck className="h-5 w-5 text-[#0B5FFF]" />
-        <span className="font-semibold text-[#1A2B4A]">{PRODUCT_NAME} Dashboard</span>
-      </div>
-      <div className="flex items-center gap-4">
-        <Link href="/survey/1" className="text-sm text-[#0B5FFF] hover:underline">
-          Home
-        </Link>
-        <Link href="/demo" className="text-sm text-[#0B5FFF] hover:underline">
-          View demo tour
-        </Link>
-      </div>
-    </header>
+    // <header className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-6 py-3">
+    //   <span className="font-semibold text-[#1A2B4A]">{PRODUCT_NAME} Control Center</span>
+    //   <Link href="/" className="text-sm text-[#0B5FFF] hover:underline">
+    //     Back to site
+    //   </Link>
+    // </header>
+    <></>
   );
 }

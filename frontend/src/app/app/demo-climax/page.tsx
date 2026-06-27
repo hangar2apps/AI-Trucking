@@ -91,9 +91,9 @@ export default function DemoClimaxPage() {
     <div className="flex flex-1 flex-col overflow-hidden">
       {mockMode && <MockDataBanner />}
       <div className="flex-1 overflow-auto p-8">
-        <Link href="/app/loads" className="text-sm text-[#0B5FFF] hover:underline">
+        {/* <Link href="/app/loads" className="text-sm text-[#0B5FFF] hover:underline">
           ← Back to loads
-        </Link>
+        </Link> */}
         <h1 className="mt-4 text-2xl font-bold text-[#1A2B4A]">Demo Climax</h1>
         <p className="mt-2 text-[#4B5563]">
           Scripted sequence: late truck → AI emails customer → backup truck ready.

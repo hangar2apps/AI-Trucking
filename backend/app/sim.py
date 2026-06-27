@@ -16,12 +16,13 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from datetime import datetime, timedelta
+from datetime import timedelta
 from math import asin, cos, radians, sin, sqrt
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clock import utcnow
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Event, Load, LoadStatus, Truck, TruckStatus
@@ -92,7 +93,7 @@ class Simulator:
             if remaining <= step:
                 truck.current_lat, truck.current_lng = load.dest_lat, load.dest_lng
                 load.status = LoadStatus.delivered
-                load.eta = datetime.now()
+                load.eta = utcnow()
                 truck.status = TruckStatus.available
                 db.add(
                     Event(
@@ -109,7 +110,12 @@ class Simulator:
                 truck.current_lat += (load.dest_lat - truck.current_lat) * frac
                 truck.current_lng += (load.dest_lng - truck.current_lng) * frac
                 hours = (remaining - step) / settings.sim_speed_mph
-                load.eta = datetime.now() + timedelta(hours=hours)
+                load.eta = utcnow() + timedelta(hours=hours)
+                # Burn the driver's legal hours as the truck drives.
+                driven = settings.sim_minutes_per_tick / 60.0
+                truck.hos_drive_remaining = max(0.0, truck.hos_drive_remaining - driven)
+                truck.hos_duty_remaining = max(0.0, truck.hos_duty_remaining - driven)
+                truck.hos_since_break += driven
                 moved.append(
                     {
                         "truck": truck.name,

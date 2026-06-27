@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import agent, events, fleet, loads, sim, survey
+from app.monitor.service import monitor
+from app.routers import agent, events, fleet, loads, monitor as monitor_router, sim, survey
 from app.sim import simulator
 from app.seed import seed
 
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
             seed(db)
     yield
     await simulator.stop()
+    await monitor.stop()
 
 
 app = FastAPI(
@@ -43,6 +45,7 @@ app.include_router(agent.router)
 app.include_router(events.router)
 app.include_router(sim.router)
 app.include_router(survey.router)
+app.include_router(monitor_router.router)
 
 
 @app.get("/health", tags=["meta"])
@@ -54,4 +57,5 @@ def health() -> dict:
         "anthropic_key_set": bool(s.anthropic_api_key),
         "email_model": s.email_model,
         "reasoning_model": s.reasoning_model,
+        "ai_test_mode": s.ai_test_mode,
     }
