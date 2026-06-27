@@ -1,6 +1,7 @@
 import {
   api,
   type EmailDraftResponse,
+  type EmailDraftSendResponse,
   type Load,
   type LoadDetail,
   type Truck,
@@ -52,6 +53,12 @@ export async function getLoad(id: number): Promise<LoadDetail> {
 
 export async function draftEmail(loadId: number): Promise<EmailDraftResponse> {
   return api.draftEmail(loadId);
+}
+
+export async function sendCustomerEmail(
+  loadId: number
+): Promise<EmailDraftSendResponse> {
+  return api.sendCustomerEmail(loadId);
 }
 
 export async function findDemoLoad(): Promise<Load | undefined> {

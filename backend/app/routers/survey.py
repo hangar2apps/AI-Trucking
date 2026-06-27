@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Lead
 from app.schemas import SurveySubmit, SurveySubmitResponse
-from app.services.email_send import send_survey_welcome_email
+from app.services.email_send import send_survey_response_email
 
 router = APIRouter(prefix="/survey", tags=["survey"])
 
@@ -28,7 +28,7 @@ def submit_survey(payload: SurveySubmit, db: Session = Depends(get_db)) -> Surve
     db.commit()
     db.refresh(lead)
 
-    email_sent, message = send_survey_welcome_email(to_email=lead.email)
+    email_sent, message = send_survey_response_email(payload=payload)
 
     return SurveySubmitResponse(
         ok=True,

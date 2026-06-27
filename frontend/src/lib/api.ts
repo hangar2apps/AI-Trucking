@@ -66,6 +66,11 @@ export interface EmailDraftResponse {
   draft: EmailDraft;
 }
 
+export interface EmailDraftSendResponse extends EmailDraftResponse {
+  email_sent: boolean;
+  send_message: string;
+}
+
 export interface SurveyAnswersPayload {
   company_size: string;
   industry: string;
@@ -106,6 +111,10 @@ export const api = {
   getLoad: (id: number) => fetchJson<LoadDetail>(`/loads/${id}`),
   draftEmail: (loadId: number) =>
     fetchJson<EmailDraftResponse>(`/loads/${loadId}/draft-email`, {
+      method: "POST",
+    }),
+  sendCustomerEmail: (loadId: number) =>
+    fetchJson<EmailDraftSendResponse>(`/loads/${loadId}/send-customer-email`, {
       method: "POST",
     }),
   submitSurvey: (answers: SurveyAnswersPayload) =>

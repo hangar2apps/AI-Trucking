@@ -97,3 +97,8 @@ class SurveySubmitResponse(BaseModel):
     email_sent: bool
     message: str
     lead_id: int
+
+
+class EmailDraftSendResponse(EmailDraftResponse):
+    email_sent: bool
+    send_message: str

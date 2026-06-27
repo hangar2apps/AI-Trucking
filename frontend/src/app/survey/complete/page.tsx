@@ -39,7 +39,7 @@ export default function SurveyCompletePage() {
             <p className="mb-4 text-[#4B5563]">
               Check your inbox at{" "}
               <strong className="text-[#1A2B4A]">{result.email}</strong> — we
-              sent you links to the demo and dashboard.
+              sent a copy of your survey questions and answers.
             </p>
           ) : result ? (
             <p className="mb-4 text-[#4B5563]">
