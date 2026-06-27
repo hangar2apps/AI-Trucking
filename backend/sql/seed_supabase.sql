@@ -12,6 +12,7 @@
 -- Reset (reverse dependency order)
 -- ---------------------------------------------------------------------------
 drop table if exists events cascade;
+drop table if exists leads cascade;
 drop table if exists loads cascade;
 drop table if exists trucks cascade;
 drop table if exists customers cascade;
@@ -76,6 +77,24 @@ create table events (
     data       jsonb
 );
 
+-- Marketing survey submissions (matches the Lead model + survey funnel).
+create table leads (
+    id            serial primary key,
+    email         varchar(255) not null,
+    phone         varchar(40),
+    company_size  varchar(40) not null,
+    industry      varchar(80) not null,
+    fleet_size    varchar(40) not null,
+    features      jsonb not null default '[]'::jsonb,
+    pain_point    text not null,
+    current_tools varchar(255),
+    timeline      varchar(40) not null,
+    role          varchar(40) not null,
+    consent       boolean not null default true,
+    created_at    timestamp not null default now()
+);
+create index ix_leads_email on leads (email);
+
 -- ---------------------------------------------------------------------------
 -- Seed: customers (fresh table → ids 1,2,3)
 -- ---------------------------------------------------------------------------
@@ -116,3 +135,23 @@ values
      now()::timestamp + interval '12 hours',
      null,
      'pending', 'Medical supplies', 9200, 'Awaiting truck assignment.');
+
+-- Seed: leads (sample survey submissions for the owner/marketing view)
+insert into leads
+    (email, phone, company_size, industry, fleet_size, features, pain_point,
+     current_tools, timeline, role, consent)
+values
+    ('ops@swifthaul.example', '+1-312-555-0148', '11-50', 'transportation', '26-100',
+     '["gps","eld","routing"]'::jsonb,
+     'No live ETA visibility; dispatch is all manual phone calls.',
+     'Spreadsheets + Samsara', '1-3', 'ops', true),
+
+    ('m.adetona@buildwell.example', null, '51-200', 'construction', '6-25',
+     '["gps","maintenance"]'::jsonb,
+     'Equipment downtime and missed maintenance windows.',
+     null, '6+', 'fleet', true),
+
+    ('dana@coldchainfoods.example', '+1-503-555-0199', '201+', 'food', '100+',
+     '["gps","dash-cams","routing","eld"]'::jsonb,
+     'Cold-chain compliance and proving on-time delivery to retailers.',
+     'Legacy TMS (in-house)', 'now', 'owner', true);
