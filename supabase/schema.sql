@@ -48,9 +48,12 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text not null,
   company_name text,
+  operations_available boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists operations_available boolean not null default false;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -59,10 +62,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name)
+  insert into public.profiles (id, full_name, operations_available)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    false
   )
   on conflict (id) do nothing;
   return new;
@@ -109,4 +113,4 @@ grant usage on schema public to anon, authenticated;
 grant insert on public.survey_leads to anon, authenticated;
 grant insert on public.email_responses to anon, authenticated;
 grant select, update on public.profiles to authenticated;
-
+

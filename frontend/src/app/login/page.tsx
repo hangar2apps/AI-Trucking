@@ -28,7 +28,14 @@ function LoginForm() {
       setError(result.error ?? "Login failed");
       return;
     }
-    router.replace(next.startsWith("/app") ? next : "/app");
+    const ops = useAuthStore.getState().user?.operationsAvailable ?? false;
+    if (ops && next.startsWith("/app") && next !== "/app/welcome") {
+      router.replace(next);
+    } else if (ops) {
+      router.replace("/app");
+    } else {
+      router.replace("/app/welcome");
+    }
   };
 
   return (

@@ -1,12 +1,14 @@
 "use client";
 
 import { create } from "zustand";
+import { isDemoOperationsEmail } from "@/lib/operations-access";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  operationsAvailable: boolean;
 }
 
 interface AuthState {
@@ -25,12 +27,29 @@ interface AuthState {
 function mapUser(
   id: string,
   email: string,
-  metadata?: Record<string, unknown>
+  metadata: Record<string, unknown> | undefined,
+  operationsAvailable: boolean
 ): AuthUser {
   const name =
     (typeof metadata?.full_name === "string" && metadata.full_name) ||
     email.split("@")[0];
-  return { id, name, email };
+  return { id, name, email, operationsAvailable };
+}
+
+async function resolveOperationsAvailable(userId: string, email: string): Promise<boolean> {
+  if (isDemoOperationsEmail(email)) return true;
+
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("operations_available")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return false;
+  return Boolean(data.operations_available);
 }
 
 let listenerAttached = false;
@@ -51,20 +70,34 @@ export const useAuthStore = create<AuthState>((set) => ({
     } = await supabase.auth.getSession();
 
     if (session?.user?.email) {
+      const operationsAvailable = await resolveOperationsAvailable(
+        session.user.id,
+        session.user.email
+      );
       set({
-        user: mapUser(session.user.id, session.user.email, session.user.user_metadata),
+        user: mapUser(
+          session.user.id,
+          session.user.email,
+          session.user.user_metadata,
+          operationsAvailable
+        ),
       });
     }
 
     if (!listenerAttached) {
       listenerAttached = true;
-      supabase.auth.onAuthStateChange((_event, nextSession) => {
+      supabase.auth.onAuthStateChange(async (_event, nextSession) => {
         if (nextSession?.user?.email) {
+          const operationsAvailable = await resolveOperationsAvailable(
+            nextSession.user.id,
+            nextSession.user.email
+          );
           set({
             user: mapUser(
               nextSession.user.id,
               nextSession.user.email,
-              nextSession.user.user_metadata
+              nextSession.user.user_metadata,
+              operationsAvailable
             ),
           });
         } else {
@@ -83,8 +116,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     const supabase = getSupabaseClient();
     if (!supabase) return { ok: false, error: "Could not connect to Supabase." };
 
+    const normalized = email.trim().toLowerCase();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: normalized,
       password,
     });
 
@@ -95,8 +129,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       return { ok: false, error: "Login failed." };
     }
 
+    const operationsAvailable = await resolveOperationsAvailable(data.user.id, data.user.email);
     set({
-      user: mapUser(data.user.id, data.user.email, data.user.user_metadata),
+      user: mapUser(
+        data.user.id,
+        data.user.email,
+        data.user.user_metadata,
+        operationsAvailable
+      ),
     });
     return { ok: true };
   },
@@ -129,7 +169,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     set({
-      user: mapUser(data.user.id, data.user.email, data.user.user_metadata),
+      user: mapUser(data.user.id, data.user.email, data.user.user_metadata, false),
     });
     return { ok: true };
   },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Rocket, Shield, Users } from "lucide-react";
-import { useSurveyPopupStore } from "@/stores/survey-popup-store";
+import { MARKET_SURVEY_URL } from "@/lib/brand";
 
 const roadmap = [
   {
@@ -26,8 +26,6 @@ const roadmap = [
 ];
 
 export function IndustryLeaderSection() {
-  const openSurvey = useSurveyPopupStore((s) => s.open);
-
   return (
     <section className="bg-[#0F172A] py-16 text-white sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -46,14 +44,15 @@ export function IndustryLeaderSection() {
               dispatch team has to. Reliable architecture, honest stage, founder-led support.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={openSurvey}
+              <a
+                href={MARKET_SURVEY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full bg-[#0B5FFF] px-5 py-2.5 text-sm font-medium hover:bg-[#0847CC]"
               >
-                Take the 4-min survey
+                Take the survey
                 <ArrowRight className="h-4 w-4" />
-              </button>
+              </a>
               <Link
                 href="/demo"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 px-5 py-2.5 text-sm font-medium hover:bg-white/10"
