@@ -1,0 +1,7 @@
+services:
+  autonomous-freight:
+    build: .
+    container_name: autonomous-freight
+    restart: unless-stopped
+    ports:
+      - "7779:80"
