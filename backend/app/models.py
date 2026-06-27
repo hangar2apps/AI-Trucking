@@ -87,6 +87,25 @@ class Load(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+
+class Event(Base):
+    """An action the system took, for the map + CS dashboard to poll.
+
+    The reroute animation keys off `kind == "reassignment"`; the CS activity
+    log reads `summary`. `data` carries the structured payload (truck ids,
+    destination, message id).
+    """
+
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    kind: Mapped[str] = mapped_column(String(40))  # reassignment | email_sent | ...
+    load_id: Mapped[int | None] = mapped_column(ForeignKey("loads.id"), nullable=True)
+    truck_id: Mapped[int | None] = mapped_column(ForeignKey("trucks.id"), nullable=True)
+    summary: Mapped[str] = mapped_column(Text)
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
 class Lead(Base):
     __tablename__ = "leads"
 
@@ -103,3 +122,4 @@ class Lead(Base):
     role: Mapped[str] = mapped_column(String(40))
     consent: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

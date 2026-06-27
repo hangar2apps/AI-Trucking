@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Customer, Load, LoadStatus, Truck, TruckStatus
+from app.models import Customer, Lead, Load, LoadStatus, Truck, TruckStatus
 
 
 def seed(db: Session) -> None:
@@ -64,8 +64,8 @@ def seed(db: Session) -> None:
             name="Truck 08",
             driver_name="Marcus Bell",
             status=TruckStatus.en_route,
-            current_lat=30.27,
-            current_lng=-97.74,  # Austin area
+            current_lat=29.90,
+            current_lng=-98.10,  # mid-lane San Antonio -> Austin
             capacity_lbs=42000,
         ),
         Truck(
@@ -135,4 +135,43 @@ def seed(db: Session) -> None:
         ),
     ]
     db.add_all(loads)
+
+    leads = [
+        Lead(
+            email="ops@swifthaul.example",
+            phone="+1-312-555-0148",
+            company_size="11-50",
+            industry="transportation",
+            fleet_size="26-100",
+            features=["gps", "eld", "routing"],
+            pain_point="No live ETA visibility; dispatch is all manual phone calls.",
+            current_tools="Spreadsheets + Samsara",
+            timeline="1-3",
+            role="ops",
+        ),
+        Lead(
+            email="m.adetona@buildwell.example",
+            company_size="51-200",
+            industry="construction",
+            fleet_size="6-25",
+            features=["gps", "maintenance"],
+            pain_point="Equipment downtime and missed maintenance windows.",
+            timeline="6+",
+            role="fleet",
+        ),
+        Lead(
+            email="dana@coldchainfoods.example",
+            phone="+1-503-555-0199",
+            company_size="201+",
+            industry="food",
+            fleet_size="100+",
+            features=["gps", "dash-cams", "routing", "eld"],
+            pain_point="Cold-chain compliance and proving on-time delivery to retailers.",
+            current_tools="Legacy TMS (in-house)",
+            timeline="now",
+            role="owner",
+        ),
+    ]
+    db.add_all(leads)
+
     db.commit()
