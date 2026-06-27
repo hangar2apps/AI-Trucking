@@ -144,7 +144,7 @@ def process_inbound_email(
     }
 
 
-def parse_resend_inbound_webhook(payload: dict[str, Any]) -> dict[str, str] | None:
+def parse_resend_inbound_webhook(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Extract inbound email fields from a Resend `email.received` webhook payload."""
     event_type = payload.get("type", "")
     if event_type and event_type != "email.received":
@@ -159,10 +159,18 @@ def parse_resend_inbound_webhook(payload: dict[str, Any]) -> dict[str, str] | No
     to_list = data.get("to") or data.get("recipients") or []
     to_email = to_list[0] if isinstance(to_list, list) and to_list else str(to_list or "")
 
+    attachments_raw = data.get("attachments") or []
+    attachments: list[dict[str, Any]] = []
+    if isinstance(attachments_raw, list):
+        for att in attachments_raw:
+            if isinstance(att, dict):
+                attachments.append(att)
+
     return {
         "from_raw": raw_from,
         "from_email": from_email,
         "to_email": to_email,
         "subject": str(data.get("subject") or ""),
         "body": str(data.get("text") or data.get("body") or data.get("html") or ""),
+        "attachments": attachments,
     }

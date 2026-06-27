@@ -15,7 +15,6 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   getAgentActions,
-  getApprovals,
   getAssistantInbox,
   getDocuments,
   getInspections,
@@ -36,7 +35,7 @@ const CAPABILITIES = [
     href: "/app/assistant/mail",
     icon: Mail,
     title: "Customer Mail",
-    description: "Auto-reply, route by intent, escalate complaints, send milestones.",
+    description: "Auto-reply, route by intent, and auto-process PDF/image attachments from email.",
     key: "mail" as const,
     countLabel: "processed",
   },
@@ -59,10 +58,10 @@ const CAPABILITIES = [
   {
     href: "/app/assistant/approvals",
     icon: CheckSquare,
-    title: "Approvals",
-    description: "Human review for high-stakes or low-confidence actions.",
+    title: "High-stakes log",
+    description: "Damage alerts, invoices, and complaint replies — all executed automatically.",
     key: "approvals" as const,
-    countLabel: "pending",
+    countLabel: "auto-executed",
   },
   {
     href: "/app/assistant/activity",
@@ -94,18 +93,20 @@ export default function AssistantOverviewPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [inbox, documents, inspections, approvals, actions] = await Promise.all([
+      const [inbox, documents, inspections, actions] = await Promise.all([
         getAssistantInbox(100).catch(() => ({ items: [] })),
         getDocuments(200),
         getInspections(200),
-        getApprovals("pending", 200),
         getAgentActions(100),
       ]);
+      const highStakes = actions.filter((a) =>
+        ["flag_damage", "send_invoice", "respond_to_complaint", "attachment_ack"].includes(a.action)
+      ).length;
       setCounts({
         mail: inbox.items.length,
         documents: documents.length,
         inspections: inspections.length,
-        approvals: approvals.length,
+        approvals: highStakes,
         actions: actions.length,
       });
       setRecent(actions.slice(0, 8));
@@ -121,7 +122,7 @@ export default function AssistantOverviewPage() {
       {mockMode && <MockDataBanner />}
       <PageHeader
         title="AI Agent"
-        description="One agent, many capabilities. It receives events, picks the right capability, chains them together, and asks for approval when the stakes are high."
+        description="One autonomous agent — mail, documents, and photos are all processed and acted on immediately. No human in the loop."
       />
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="mx-auto max-w-5xl space-y-8">
@@ -132,20 +133,18 @@ export default function AssistantOverviewPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[#1A2B4A]">
-                  {counts.approvals > 0
-                    ? `${counts.approvals} action${counts.approvals === 1 ? "" : "s"} waiting for your approval`
-                    : "No actions waiting for approval"}
+                  Fully autonomous — {counts.actions} action{counts.actions === 1 ? "" : "s"} logged
                 </p>
                 <p className="mt-1 text-sm text-[#6B7280]">
-                  High-stakes actions (flagging damage, large invoices, complaint replies) and
-                  low-confidence decisions are queued for a human instead of acting alone.
+                  Inbound text is auto-replied. PDFs go to document processing. Photos go to
+                  inspection. Invoices, damage alerts, and complaint replies all send automatically.
                 </p>
               </div>
               <Link
-                href="/app/assistant/approvals"
+                href="/app/assistant/activity"
                 className="self-center rounded-full bg-[#0B5FFF] px-4 py-2 text-sm font-medium text-white hover:bg-[#0847CC]"
               >
-                Review queue
+                View activity
               </Link>
             </CardBody>
           </Card>

@@ -118,6 +118,10 @@ function MailContent() {
                   </li>
                   <li>AI matches the sender to fleet records and understands intent.</li>
                   <li>
+                    PDFs and images in the email are routed automatically — document processing
+                    for PODs/BOLs, image inspection for freight photos.
+                  </li>
+                  <li>
                     AI sends the reply immediately —{" "}
                     {autoReplyEnabled ? (
                       <span className="font-medium text-emerald-700">auto-reply is ON</span>

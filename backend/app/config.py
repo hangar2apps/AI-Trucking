@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     ai_inbox_email: str = "onboarding@resend.dev"
     # Inbound mail is always auto-replied by AI; no human review step.
     inbound_auto_reply_enabled: bool = True
+    # When true the agent executes every action immediately (no human approval queue).
+    agent_autonomous_mode: bool = True
     # Block manual "click to send" email endpoints (loads / inquiry send).
     allow_manual_email: bool = False
 

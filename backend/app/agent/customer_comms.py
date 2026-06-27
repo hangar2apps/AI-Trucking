@@ -20,6 +20,11 @@ from sqlalchemy.orm import Session
 
 from app.agent import approvals
 from app.agent.actionlog import log_action
+from app.agent.inbound_attachments import (
+    process_inbound_attachments,
+    summarize_attachment_results,
+)
+from app.agent.policy import decide
 from app.cap_models import Document
 from app.config import get_settings
 from app.models import Load
@@ -94,11 +99,74 @@ def process_customer_email(
     from_name: str = "",
     to_email: str = "",
     source: str = "webhook",
+    attachments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Classify an inbound email and route it to the right handler."""
-    classification = classify_intent(subject, body)
+    settings = get_settings()
+    sender_name, sender_email = _parse_sender(from_email, from_name)
+
+    # Attachments first: PDF → document agent, images → inspection agent.
+    attachment_results: list[dict[str, Any]] = []
+    if attachments:
+        attachment_results = process_inbound_attachments(
+            main_db,
+            cap_db,
+            attachments=attachments,
+            subject=subject,
+            body=body,
+        )
+
+    attachment_summary = summarize_attachment_results(attachment_results)
+    text_for_intent = body.strip() or attachment_summary
+
+    classification = classify_intent(subject, text_for_intent)
     intent = classification.get("intent", "other")
     confidence = classification.get("confidence", "low")
+
+    # Attachment-only mail: acknowledge processing without a separate intent pass.
+    if attachment_results and not body.strip():
+        ack_body = (
+            f"Hello,\n\n{attachment_summary}\n\n"
+            f"If anything looks off, reply to this email and we'll take another look.\n\n"
+            f"The {settings.company_name} Team"
+        )
+        reply_subject = f"Re: {subject}".strip() if subject.strip() else "Attachment processed"
+        drafted = process_inbound_email(
+            main_db,
+            from_email=from_email,
+            from_name=from_name,
+            body=attachment_summary,
+            subject=subject,
+            to_email=to_email,
+            source=source,
+            auto_send=False,
+        )
+        sent, message = send_customer_email(
+            to_email=sender_email,
+            subject=reply_subject,
+            body=ack_body,
+            in_reply_to=subject or None,
+        )
+        log_action(
+            cap_db,
+            capability="comms",
+            action="attachment_ack",
+            result="sent" if sent else "send_failed",
+            load_id=drafted.get("matched_load_id"),
+            load_ref=drafted.get("load_reference"),
+            confidence=confidence,
+            summary=f"Auto-processed {len(attachment_results)} attachment(s) from {sender_email}",
+            data={"attachment_results": attachment_results, "message": message},
+        )
+        cap_db.commit()
+        drafted["routed_intent"] = "attachment"
+        drafted["routing"] = "attachment_processed"
+        drafted["reply_subject"] = reply_subject
+        drafted["reply_body"] = ack_body
+        drafted["auto_reply_sent"] = sent
+        drafted["send_message"] = message
+        drafted["attachment_results"] = attachment_results
+        return drafted
 
     # Status / other: identical to the existing autonomous auto-reply flow.
     if intent in ("status_question", "other"):
@@ -106,7 +174,7 @@ def process_customer_email(
             main_db,
             from_email=from_email,
             from_name=from_name,
-            body=body,
+            body=_body_with_attachment_summary(body, attachment_summary),
             subject=subject,
             to_email=to_email,
             source=source,
@@ -114,6 +182,7 @@ def process_customer_email(
         )
         result["routed_intent"] = intent
         result["routing"] = "auto_reply"
+        result["attachment_results"] = attachment_results
         _log_routing(cap_db, intent, confidence, result, "auto_reply")
         return result
 
@@ -123,37 +192,59 @@ def process_customer_email(
         main_db,
         from_email=from_email,
         from_name=from_name,
-        body=body,
+        body=_body_with_attachment_summary(body, attachment_summary),
         subject=subject,
         to_email=to_email,
         source=source,
         auto_send=False,
     )
     drafted["routed_intent"] = intent
+    drafted["attachment_results"] = attachment_results
 
     load_id = drafted.get("matched_load_id")
     load_ref = drafted.get("load_reference")
     reply_subject = drafted.get("reply_subject") or f"Re: {subject}".strip()
 
     if intent == "complaint":
-        item = approvals.enqueue(
+        decision = decide("respond_to_complaint", confidence=confidence)
+        payload = {
+            "to_email": sender_email,
+            "subject": reply_subject,
+            "body": drafted.get("reply_body", ""),
+            "in_reply_to": subject or None,
+        }
+        if decision.needs_approval:
+            item = approvals.enqueue(
+                cap_db,
+                action_type="respond_to_complaint",
+                capability="comms",
+                reason=decision.reason,
+                payload=payload,
+                load_id=load_id,
+                load_ref=load_ref,
+                confidence=confidence,
+            )
+            cap_db.commit()
+            drafted["routing"] = "escalated_to_human"
+            drafted["approval_item_id"] = item.id
+            return drafted
+
+        sent, message = send_customer_email(**payload)
+        log_action(
             cap_db,
-            action_type="respond_to_complaint",
             capability="comms",
-            reason="customer complaint — human review required",
-            payload={
-                "to_email": from_email,
-                "subject": reply_subject,
-                "body": drafted.get("reply_body", ""),
-                "in_reply_to": subject or None,
-            },
+            action="respond_to_complaint",
+            result="sent" if sent else "send_failed",
             load_id=load_id,
             load_ref=load_ref,
             confidence=confidence,
+            summary=f"Auto-replied to complaint from {sender_email}",
+            data={"message": message},
         )
         cap_db.commit()
-        drafted["routing"] = "escalated_to_human"
-        drafted["approval_item_id"] = item.id
+        drafted["routing"] = "complaint_auto_reply"
+        drafted["auto_reply_sent"] = sent
+        drafted["send_message"] = message
         return drafted
 
     if intent == "document_request":
@@ -307,3 +398,22 @@ def send_milestone_email(
         "email_sent": sent,
         "send_message": message,
     }
+
+
+def _parse_sender(from_email: str, from_name: str) -> tuple[str, str]:
+    from app.services.inbound_processor import parse_from_header
+
+    name, addr = parse_from_header(from_email)
+    if not addr and "@" in from_email:
+        addr = from_email.strip().lower()
+    if from_name.strip():
+        name = from_name.strip()
+    return name, (addr or from_email.strip().lower())
+
+
+def _body_with_attachment_summary(body: str, summary: str) -> str:
+    if not summary.strip():
+        return body
+    if not body.strip():
+        return summary
+    return f"{body.strip()}\n\n{summary}"

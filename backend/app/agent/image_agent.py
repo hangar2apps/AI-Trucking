@@ -20,10 +20,12 @@ from sqlalchemy.orm import Session
 
 from app.agent import approvals
 from app.agent.actionlog import log_action
+from app.agent.policy import decide
 from app.agent.vision import build_file_block
 from app.cap_models import Inspection, InspectionPhase
 from app.config import get_settings
 from app.models import Load
+from app.services.email_send import send_customer_email
 
 _LOAD_REF = re.compile(r"\bLD-\d+\b", re.IGNORECASE)
 
@@ -217,23 +219,54 @@ def process_inspection(
     if inspection.damage_detected:
         settings = get_settings()
         subject, body = _alert_body(load, inspection, findings)
-        item = approvals.enqueue(
-            cap_db,
-            action_type="flag_damage",
-            capability="image",
-            reason="visible damage detected on freight inspection",
-            payload={
-                "to_email": settings.dispatcher_email,
-                "subject": subject,
-                "body": body,
-                "inspection_id": inspection.id,
-                "cc_claims": settings.claims_email,
-            },
-            load_id=load.id if load else None,
-            load_ref=load.reference if load else None,
-            confidence=confidence,
-        )
-        result["approval_item_id"] = item.id
+        decision = decide("flag_damage", confidence=confidence)
+        payload = {
+            "to_email": settings.dispatcher_email,
+            "subject": subject,
+            "body": body,
+            "inspection_id": inspection.id,
+        }
+
+        if decision.needs_approval:
+            item = approvals.enqueue(
+                cap_db,
+                action_type="flag_damage",
+                capability="image",
+                reason=decision.reason,
+                payload=payload,
+                load_id=load.id if load else None,
+                load_ref=load.reference if load else None,
+                confidence=confidence,
+            )
+            result["approval_item_id"] = item.id
+        else:
+            sent, message = send_customer_email(
+                to_email=settings.dispatcher_email,
+                subject=subject,
+                body=body,
+            )
+            if settings.claims_email and settings.claims_email != settings.dispatcher_email:
+                send_customer_email(
+                    to_email=settings.claims_email,
+                    subject=subject,
+                    body=body,
+                )
+            findings_update = dict(inspection.findings or {})
+            findings_update["damage_flagged"] = True
+            inspection.findings = findings_update
+            log_action(
+                cap_db,
+                capability="image",
+                action="flag_damage",
+                result="sent" if sent else "send_failed",
+                load_id=load.id if load else None,
+                load_ref=load.reference if load else None,
+                confidence=confidence,
+                summary=f"Damage alert emailed for {load.reference if load else 'unmatched'}",
+                data={"message": message, "inspection_id": inspection.id},
+            )
+            result["damage_alert_sent"] = sent
+            result["send_message"] = message
 
     cap_db.commit()
     return result

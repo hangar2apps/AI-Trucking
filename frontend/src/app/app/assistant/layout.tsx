@@ -10,7 +10,7 @@ const tabs = [
   { href: "/app/assistant/mail", label: "Mail", icon: Mail },
   { href: "/app/assistant/documents", label: "Documents", icon: FileText },
   { href: "/app/assistant/inspections", label: "Inspections", icon: Bot },
-  { href: "/app/assistant/approvals", label: "Approvals", icon: CheckSquare },
+  { href: "/app/assistant/approvals", label: "High-stakes", icon: CheckSquare },
   { href: "/app/assistant/activity", label: "Activity", icon: Activity },
 ];
 

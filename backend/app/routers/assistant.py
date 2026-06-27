@@ -59,10 +59,11 @@ class InquirySendResponse(InquiryReplyResponse):
 
 class InboundSimulateRequest(BaseModel):
     from_email: str = Field(min_length=3)
-    body: str = Field(min_length=1)
+    body: str = ""
     subject: str = ""
     sender_name: str = ""
     to_email: str = ""
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class InboundProcessResponse(BaseModel):
@@ -85,6 +86,9 @@ class InboundProcessResponse(BaseModel):
     auto_reply_sent: bool
     send_message: str
     model: str
+    routed_intent: str | None = None
+    routing: str | None = None
+    attachment_results: list[dict[str, Any]] | None = None
 
 
 class InboxItem(BaseModel):
@@ -220,6 +224,7 @@ async def inbound_email_webhook(
         subject=parsed["subject"],
         to_email=parsed["to_email"],
         source="webhook",
+        attachments=parsed.get("attachments") or [],
     )
     return InboundProcessResponse(**result)
 
@@ -235,6 +240,9 @@ def simulate_inbound_email(
     if not settings.anthropic_api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
 
+    if not req.body.strip() and not req.attachments:
+        raise HTTPException(400, "Provide body text and/or attachments")
+
     result = customer_comms.process_customer_email(
         db,
         cap_db,
@@ -244,6 +252,7 @@ def simulate_inbound_email(
         subject=req.subject,
         to_email=req.to_email,
         source="simulate",
+        attachments=req.attachments,
     )
     return InboundProcessResponse(**result)
 

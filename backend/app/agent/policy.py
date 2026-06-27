@@ -1,7 +1,8 @@
 """Confidence + stakes gating for autonomous vs human-approved actions.
 
-The agent acts alone when it is confident AND the action is low-stakes.
-Otherwise the action is queued for a human (see ApprovalItem / approvals router).
+When agent_autonomous_mode is on (default), every action runs immediately — same
+as inbound mail auto-reply. The approval queue is skipped; high-stakes actions
+still get logged to the activity feed.
 """
 
 from __future__ import annotations
@@ -43,6 +44,9 @@ def decide(
 ) -> Decision:
     """Decide whether an action runs autonomously or goes to the approval queue."""
     settings = get_settings()
+
+    if settings.agent_autonomous_mode:
+        return Decision("auto", "agent_autonomous_mode — execute immediately")
 
     if action_type in HIGH_STAKES_ACTIONS:
         return Decision("approval", f"'{action_type}' is always human-reviewed")
