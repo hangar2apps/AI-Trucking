@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     sim_minutes_per_tick: float = 6.0   # simulated minutes advanced per tick
 
     company_name: str = "Aurora Freight"
+    product_name: str = "app"
+
+    resend_api_key: str = ""
+    from_email: str = "onboarding@resend.dev"
+    frontend_url: str = "http://localhost:3000"
 
     # Opus 4.8 for the reasoning brain, Sonnet 4.6 for customer emails.
     reasoning_model: str = "claude-opus-4-8"

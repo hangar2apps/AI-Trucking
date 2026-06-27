@@ -111,3 +111,32 @@ class AgentRunResult(BaseModel):
     steps: list[AgentStep]
     iterations: int
     dry_run: bool
+
+# --- Survey / leads -------------------------------------------------------
+
+
+class SurveySubmit(BaseModel):
+    company_size: str
+    industry: str
+    fleet_size: str
+    features: list[str]
+    pain_point: str
+    current_tools: str = ""
+    timeline: str
+    role: str
+    email: str
+    phone: str = ""
+    consent: bool
+
+
+class SurveySubmitResponse(BaseModel):
+    ok: bool
+    email_sent: bool
+    message: str
+    lead_id: int
+
+
+class EmailDraftSendResponse(EmailDraftResponse):
+    email_sent: bool
+    send_message: str
+

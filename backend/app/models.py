@@ -87,6 +87,7 @@ class Load(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+
 class Event(Base):
     """An action the system took, for the map + CS dashboard to poll.
 
@@ -104,3 +105,21 @@ class Event(Base):
     truck_id: Mapped[int | None] = mapped_column(ForeignKey("trucks.id"), nullable=True)
     summary: Mapped[str] = mapped_column(Text)
     data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+class Lead(Base):
+    __tablename__ = "leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    company_size: Mapped[str] = mapped_column(String(40))
+    industry: Mapped[str] = mapped_column(String(80))
+    fleet_size: Mapped[str] = mapped_column(String(40))
+    features: Mapped[list] = mapped_column(JSON, default=list)
+    pain_point: Mapped[str] = mapped_column(Text)
+    current_tools: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timeline: Mapped[str] = mapped_column(String(40))
+    role: Mapped[str] = mapped_column(String(40))
+    consent: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
-from app.routers import agent, events, fleet, loads, sim
+from app.routers import agent, events, fleet, loads, sim, survey
 from app.sim import simulator
 from app.seed import seed
 
@@ -42,6 +42,7 @@ app.include_router(fleet.router)
 app.include_router(agent.router)
 app.include_router(events.router)
 app.include_router(sim.router)
+app.include_router(survey.router)
 
 
 @app.get("/health", tags=["meta"])
