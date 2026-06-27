@@ -12,10 +12,11 @@ from app.sim import simulator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
     # Supabase/Postgres is the source of truth: schema + seed come from
     # backend/sql/seed_supabase.sql. Only auto-create and seed for a local
     # SQLite throwaway DB so `uv run uvicorn ...` still boots with zero setup.
-    if get_settings().database_url.startswith("sqlite"):
+    if settings.database_url.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
             seed(db)

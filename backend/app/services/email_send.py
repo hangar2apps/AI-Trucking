@@ -38,6 +38,7 @@ _FEATURE = {
 
 def _send_via_resend(*, to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     settings = get_settings()
+    recipient = settings.demo_email_to.strip() or to_email
 
     if not settings.resend_api_key:
         return False, "RESEND_API_KEY not configured — saved without email."
@@ -50,15 +51,18 @@ def _send_via_resend(*, to_email: str, subject: str, html_body: str) -> tuple[bo
                 "Content-Type": "application/json",
             },
             json={
-                "from": settings.from_email,
-                "to": [to_email],
+                "from": settings.resend_from,
+                "to": [recipient],
                 "subject": subject,
                 "html": html_body,
             },
             timeout=15.0,
         )
         if response.status_code in (200, 201):
-            return True, f"Email sent to {to_email}."
+            msg = f"Email sent to {recipient}."
+            if settings.demo_email_to.strip() and recipient != to_email:
+                msg += f" (demo override; intended recipient {to_email})"
+            return True, msg
         return False, f"Resend error: {response.status_code} {response.text}"
     except httpx.HTTPError as exc:
         return False, f"Failed to send email: {exc}"

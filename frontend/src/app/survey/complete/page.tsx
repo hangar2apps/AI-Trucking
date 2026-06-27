@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
 import { CheckCircle2 } from "lucide-react";
@@ -13,19 +13,19 @@ interface SubmitResult {
   message: string;
 }
 
-export default function SurveyCompletePage() {
-  const [result, setResult] = useState<SubmitResult | null>(null);
+function readSubmitResult(): SubmitResult | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem("survey-submit-result");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SubmitResult;
+  } catch {
+    return null;
+  }
+}
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("survey-submit-result");
-    if (raw) {
-      try {
-        setResult(JSON.parse(raw) as SubmitResult);
-      } catch {
-        /* ignore */
-      }
-    }
-  }, []);
+export default function SurveyCompletePage() {
+  const [result] = useState<SubmitResult | null>(readSubmitResult);
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
