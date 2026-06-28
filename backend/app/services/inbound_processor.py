@@ -159,6 +159,8 @@ def parse_resend_inbound_webhook(payload: dict[str, Any]) -> dict[str, Any] | No
     to_list = data.get("to") or data.get("recipients") or []
     to_email = to_list[0] if isinstance(to_list, list) and to_list else str(to_list or "")
 
+    email_id = str(data.get("email_id") or data.get("id") or "")
+
     attachments_raw = data.get("attachments") or []
     attachments: list[dict[str, Any]] = []
     if isinstance(attachments_raw, list):
@@ -167,6 +169,7 @@ def parse_resend_inbound_webhook(payload: dict[str, Any]) -> dict[str, Any] | No
                 attachments.append(att)
 
     return {
+        "email_id": email_id,
         "from_raw": raw_from,
         "from_email": from_email,
         "to_email": to_email,

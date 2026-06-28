@@ -14,6 +14,7 @@ from app.db import get_db
 from app.models import Event
 from app.services.email_send import send_customer_email
 from app.services.inbound_processor import parse_resend_inbound_webhook
+from app.services.resend_inbound import enrich_inbound_from_resend
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -215,6 +216,9 @@ async def inbound_email_webhook(
     parsed = parse_resend_inbound_webhook(payload)
     if not parsed:
         raise HTTPException(400, "Unsupported webhook event (expected email.received)")
+
+    # Real inbound: webhook is metadata only — fetch body + attachment bytes from Resend.
+    parsed = enrich_inbound_from_resend(parsed)
 
     result = customer_comms.process_customer_email(
         db,

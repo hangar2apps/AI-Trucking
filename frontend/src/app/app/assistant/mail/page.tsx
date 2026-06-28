@@ -114,7 +114,7 @@ function MailContent() {
                     <span className="font-medium text-[#1A2B4A]">
                       {aiInboxEmail || "your AI inbox"}
                     </span>{" "}
-                    (direct or reply to an AI-sent email).
+                    (direct or reply to an AI-sent email via Resend Receiving).
                   </li>
                   <li>AI matches the sender to fleet records and understands intent.</li>
                   <li>
@@ -132,8 +132,12 @@ function MailContent() {
                   </li>
                 </ol>
                 <p className="text-xs text-[#9CA3AF]">
-                  Production webhook:{" "}
-                  <code className="rounded bg-white px-1">POST /assistant/inbound/webhook</code>
+                  Production: configure Resend Receiving on{" "}
+                  <span className="font-medium">{aiInboxEmail || "AI_INBOX_EMAIL"}</span> and point
+                  the <code className="rounded bg-white px-1">email.received</code> webhook to{" "}
+                  <code className="rounded bg-white px-1">POST /assistant/inbound/webhook</code> on
+                  your deployed API. Real PDFs and photos are downloaded from Resend and processed
+                  automatically — no simulation needed.
                 </p>
               </div>
             </CardBody>
