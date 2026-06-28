@@ -29,6 +29,31 @@ class EventOut(BaseModel):
     data: dict | None = None
 
 
+class IncidentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    summary: str
+    center_lat: float
+    center_lng: float
+    radius_mi: float
+    severity: str
+    eta_impact_minutes: int
+    active: bool
+    created_at: datetime
+
+
+class IncidentCreate(BaseModel):
+    kind: str = "weather"  # weather | accident | disaster
+    summary: str
+    center_lat: float
+    center_lng: float
+    radius_mi: float = 35.0
+    severity: str = "severe"
+    eta_impact_minutes: int = 60
+
+
 class TruckOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,6 +64,9 @@ class TruckOut(BaseModel):
     current_lat: float | None = None
     current_lng: float | None = None
     capacity_lbs: int | None = None
+    hos_drive_remaining: float
+    hos_duty_remaining: float
+    hos_since_break: float
 
 
 class LoadOut(BaseModel):

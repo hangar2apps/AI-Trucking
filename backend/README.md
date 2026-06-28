@@ -62,7 +62,7 @@ Set in `.env`:
 
 ```
 RESEND_API_KEY=re_...
-FROM_EMAIL=onboarding@resend.dev
+RESEND_FROM=A-TMS (Aurora Freight) <onboarding@resend.dev>
 FRONTEND_URL=http://localhost:3000
 PRODUCT_NAME=app
 ```

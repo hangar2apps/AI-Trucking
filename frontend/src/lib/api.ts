@@ -17,6 +17,9 @@ export interface Truck {
   current_lat: number | null;
   current_lng: number | null;
   capacity_lbs: number | null;
+  hos_drive_remaining?: number;
+  hos_duty_remaining?: number;
+  hos_since_break?: number;
 }
 
 export interface Customer {
@@ -102,12 +105,45 @@ export interface FleetEvent {
   data: Record<string, unknown> | null;
 }
 
+export interface Incident {
+  id: number;
+  kind: string;
+  summary: string;
+  center_lat: number;
+  center_lng: number;
+  radius_mi: number;
+  severity: string;
+  eta_impact_minutes: number;
+  active: boolean;
+  created_at: string;
+}
+
 export interface SimStatus {
   running: boolean;
   tick_count: number;
   interval_seconds: number;
   minutes_per_tick: number;
   step_miles: number;
+}
+
+export interface SimTickResult {
+  tick: number;
+  moved: { truck: string; load: string; lat: number; lng: number }[];
+  delivered: string[];
+}
+
+export interface MonitorStatus {
+  running: boolean;
+  tick_count: number;
+  interval_seconds: number;
+  test_mode: boolean;
+}
+
+export interface MonitorTickResult {
+  tick: number;
+  test_mode: boolean;
+  actions: Record<string, unknown>[];
+  reasoning: { level: string; text: string }[];
 }
 
 export interface WeatherRouteResult {
@@ -179,12 +215,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(answers),
     }),
-  getEvents: (sinceId = 0) =>
-    fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}&limit=100`),
-  getSimStatus: () => fetchJson<SimStatus>("/sim/status"),
-  startSim: () => fetchJson<SimStatus>("/sim/start", { method: "POST" }),
-  stopSim: () => fetchJson<SimStatus>("/sim/stop", { method: "POST" }),
-  tickSim: () => fetchJson<Record<string, unknown>>("/sim/tick", { method: "POST" }),
+  getEvents: (sinceId = 0) => fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}`),
+  getIncidents: (activeOnly = false) =>
+    fetchJson<Incident[]>(`/incidents${activeOnly ? "?active_only=true" : ""}`),
+  simStatus: () => fetchJson<SimStatus>("/sim/status"),
+  simTick: () => fetchJson<SimTickResult>("/sim/tick", { method: "POST" }),
+  simStart: () => fetchJson<SimStatus>("/sim/start", { method: "POST" }),
+  simStop: () => fetchJson<SimStatus>("/sim/stop", { method: "POST" }),
+  monitorStatus: () => fetchJson<MonitorStatus>("/monitor/status"),
+  monitorTick: () => fetchJson<MonitorTickResult>("/monitor/tick", { method: "POST" }),
+  monitorStart: () => fetchJson<MonitorStatus>("/monitor/start", { method: "POST" }),
+  monitorStop: () => fetchJson<MonitorStatus>("/monitor/stop", { method: "POST" }),
+
   checkWeatherRoute: (route: {
     origin_lat: number;
     origin_lng: number;
@@ -205,4 +247,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ situation, dry_run: dryRun }),
     }),
+
 };

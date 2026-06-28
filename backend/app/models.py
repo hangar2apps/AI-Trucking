@@ -50,6 +50,11 @@ class Truck(Base):
     current_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     capacity_lbs: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # DOT hours-of-service, depleted by the sim as the truck drives.
+    hos_drive_remaining: Mapped[float] = mapped_column(Float, default=11.0)  # of 11h limit
+    hos_duty_remaining: Mapped[float] = mapped_column(Float, default=14.0)   # of 14h window
+    hos_since_break: Mapped[float] = mapped_column(Float, default=0.0)       # driving h since 30m break
+
     loads: Mapped[list[Load]] = relationship(back_populates="truck")
 
 
@@ -86,6 +91,9 @@ class Load(Base):
     weight_lbs: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Notification debounce — so the monitor emails once per state, not per tick.
+    delay_notified: Mapped[bool] = mapped_column(default=False)
+    delivered_notified: Mapped[bool] = mapped_column(default=False)
 
 
 class Event(Base):
@@ -123,4 +131,32 @@ class Lead(Base):
     role: Mapped[str] = mapped_column(String(40))
     consent: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class IncidentKind(str, enum.Enum):
+    weather = "weather"
+    accident = "accident"
+    disaster = "disaster"
+
+
+class Incident(Base):
+    """A route obstruction (weather/accident/natural disaster) the monitor checks.
+
+    A load's route 'hits' an incident when its path passes within `radius_mi` of
+    the center; `eta_impact_minutes` is the delay added if not rerouted around it.
+    Shape mirrors the control-center engine so the route dev can feed real data.
+    """
+
+    __tablename__ = "incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[IncidentKind] = mapped_column(Enum(IncidentKind))
+    summary: Mapped[str] = mapped_column(String(255))
+    center_lat: Mapped[float] = mapped_column(Float)
+    center_lng: Mapped[float] = mapped_column(Float)
+    radius_mi: Mapped[float] = mapped_column(Float)
+    severity: Mapped[str] = mapped_column(String(20))  # watch | warning | severe
+    eta_impact_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

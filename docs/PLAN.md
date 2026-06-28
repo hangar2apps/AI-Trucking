@@ -78,10 +78,16 @@ The autonomous sequence that is the demo climax.
 - ⬜ Inbound email → agent reads → auto-replies with status
 - ⬜ Incident injection (weather/closure) — pairs with the route engine
 
-### Phase 5 — Frontend & integrations ⬜ (parallel, other devs)
-- ⬜ React dashboards: owner / CS / fleet
-- ⬜ 3D live tracking map (Mapbox) — consumes `/trucks` + reassignment events
-- ⬜ Weather/route engine exposed as the `check_weather_route` tool
+### Phase 5 — Frontend & integrations 🟡
+- ✅ Frontend draft (Next.js 16 / React 19): marketing landing → **Log in**
+  (passthrough) → SaaS app shell with **Dashboard / Loads / Map** nav.
+  - Dashboard: KPIs + loads-by-status + AI activity feed (polls `/loads`,
+    `/trucks`, `/events`).
+  - Map: full fleet map polling `/trucks` every 2s + **Start/Pause motion**
+    wired to `/sim/start|stop` — placeholder for the control-center map.
+  - API client extended with `getEvents` + sim controls. `next build` clean.
+- ⬜ Drop the **control-center** map into the Map screen (route dev finishing)
+- ⬜ Weather/route engine → fills the `check_weather_route` / `get_driver_hours` stubs
 
 ---
 

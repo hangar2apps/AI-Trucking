@@ -19,6 +19,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clock import utcnow
 from app.config import get_settings
 from app.models import Event, Load, LoadStatus, Truck, TruckStatus
 
@@ -215,7 +216,7 @@ def _compute_eta(db: Session, truck_id: int, dest_lat: float, dest_lng: float) -
         return {"error": "truck not found or has no known location"}
     miles = _haversine_mi(truck.current_lat, truck.current_lng, dest_lat, dest_lng)
     hours = miles / 50.0  # avg highway speed incl. stops
-    eta = datetime.now() + timedelta(hours=hours)
+    eta = utcnow() + timedelta(hours=hours)
     return {"distance_mi": round(miles, 1), "drive_hours": round(hours, 2), "eta": eta.isoformat()}
 
 

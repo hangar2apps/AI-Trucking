@@ -52,7 +52,7 @@ def _send_via_resend(*, to_email: str, subject: str, html_body: str) -> tuple[bo
             },
             json={
                 "from": settings.resend_from,
-                "to": [recipient],
+                "to": [to_email],
                 "subject": subject,
                 "html": html_body,
             },
