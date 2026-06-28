@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Pause, Play, Sparkles } from "lucide-react";
+import { Pause, Play, RotateCcw, Sparkles } from "lucide-react";
 import {
   getEvents,
   getIncidents,
@@ -122,6 +122,7 @@ export default function LiveMap() {
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (!elRef.current || mapRef.current) return;
@@ -374,6 +375,20 @@ export default function LiveMap() {
     }
   }
 
+  async function resetDemo() {
+    setResetting(true);
+    try {
+      await api.resetDemo();
+      reroutedLoads.current.clear(); // back to the straight at-risk line
+      reroutedUntil.current.clear();
+      didFit.current = false; // re-fit the camera to the fresh national fleet
+    } catch {
+      /* ignore */
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="relative h-full w-full">
       <div ref={elRef} className="h-full w-full" />
@@ -402,6 +417,16 @@ export default function LiveMap() {
         >
           <Sparkles className="h-4 w-4" />
           {thinking ? "Assessing…" : "Run AI"}
+        </button>
+        <button
+          type="button"
+          onClick={resetDemo}
+          disabled={resetting || mockMode}
+          title="Reset the demo to its starting scenario"
+          className="flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-semibold text-[#1A2B4A] shadow transition hover:bg-white disabled:opacity-50"
+        >
+          <RotateCcw className="h-4 w-4" />
+          {resetting ? "Resetting…" : "Reset demo"}
         </button>
       </div>
     </div>

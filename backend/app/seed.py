@@ -7,15 +7,16 @@ the demo climax where the AI emails the customer and reassigns the backup.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.clock import utcnow
 
 from app.models import (
     Customer,
+    Event,
     Incident,
     IncidentKind,
     Lead,
@@ -29,9 +30,22 @@ from app.models import (
 def seed(db: Session) -> None:
     if db.scalar(select(Load).limit(1)) is not None:
         return  # already seeded
+    _seed_fleet(db, utcnow())
+    _seed_leads(db)
+    db.commit()
 
-    now = utcnow()
 
+def reset_demo(db: Session) -> None:
+    """Force-reset operational demo data (trucks/loads/incidents/events) with
+    fresh now()-relative timestamps. Leaves marketing ``leads`` untouched."""
+    for model in (Event, Load, Incident, Truck, Customer):
+        db.execute(delete(model))
+    db.commit()
+    _seed_fleet(db, utcnow())
+    db.commit()
+
+
+def _seed_fleet(db: Session, now: datetime) -> None:
     customers = [
         Customer(
             name="Maria Chen",
@@ -397,44 +411,6 @@ def seed(db: Session) -> None:
     ]
     db.add_all(loads)
 
-    leads = [
-        Lead(
-            email="ops@swifthaul.example",
-            phone="+1-312-555-0148",
-            company_size="11-50",
-            industry="transportation",
-            fleet_size="26-100",
-            features=["gps", "eld", "routing"],
-            pain_point="No live ETA visibility; dispatch is all manual phone calls.",
-            current_tools="Spreadsheets + Samsara",
-            timeline="1-3",
-            role="ops",
-        ),
-        Lead(
-            email="m.adetona@buildwell.example",
-            company_size="51-200",
-            industry="construction",
-            fleet_size="6-25",
-            features=["gps", "maintenance"],
-            pain_point="Equipment downtime and missed maintenance windows.",
-            timeline="6+",
-            role="fleet",
-        ),
-        Lead(
-            email="dana@coldchainfoods.example",
-            phone="+1-503-555-0199",
-            company_size="201+",
-            industry="food",
-            fleet_size="100+",
-            features=["gps", "dash-cams", "routing", "eld"],
-            pain_point="Cold-chain compliance and proving on-time delivery to retailers.",
-            current_tools="Legacy TMS (in-house)",
-            timeline="now",
-            role="owner",
-        ),
-    ]
-    db.add_all(leads)
-
     incidents = [
         Incident(
             kind=IncidentKind.weather,
@@ -489,4 +465,42 @@ def seed(db: Session) -> None:
     ]
     db.add_all(incidents)
 
-    db.commit()
+
+def _seed_leads(db: Session) -> None:
+    leads = [
+        Lead(
+            email="ops@swifthaul.example",
+            phone="+1-312-555-0148",
+            company_size="11-50",
+            industry="transportation",
+            fleet_size="26-100",
+            features=["gps", "eld", "routing"],
+            pain_point="No live ETA visibility; dispatch is all manual phone calls.",
+            current_tools="Spreadsheets + Samsara",
+            timeline="1-3",
+            role="ops",
+        ),
+        Lead(
+            email="m.adetona@buildwell.example",
+            company_size="51-200",
+            industry="construction",
+            fleet_size="6-25",
+            features=["gps", "maintenance"],
+            pain_point="Equipment downtime and missed maintenance windows.",
+            timeline="6+",
+            role="fleet",
+        ),
+        Lead(
+            email="dana@coldchainfoods.example",
+            phone="+1-503-555-0199",
+            company_size="201+",
+            industry="food",
+            fleet_size="100+",
+            features=["gps", "dash-cams", "routing", "eld"],
+            pain_point="Cold-chain compliance and proving on-time delivery to retailers.",
+            current_tools="Legacy TMS (in-house)",
+            timeline="now",
+            role="owner",
+        ),
+    ]
+    db.add_all(leads)
