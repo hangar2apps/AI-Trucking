@@ -5,6 +5,7 @@ import {
   type EmailDraftResponse,
   type EmailDraftSendResponse,
   type FleetEvent,
+  type Incident,
   type Load,
   type LoadDetail,
   type SimStatus,
@@ -47,6 +48,10 @@ export async function getEvents(sinceId = 0): Promise<FleetEvent[]> {
   return withFallback(() => api.getEvents(sinceId), []);
 }
 
+export async function getIncidents(activeOnly = false): Promise<Incident[]> {
+  return withFallback(() => api.getIncidents(activeOnly), []);
+}
+
 export async function getLoad(id: number): Promise<LoadDetail> {
   return withFallback(() => api.getLoad(id), {
     ...MOCK_LOAD_DETAIL,
@@ -84,20 +89,16 @@ export async function findBackupTruck(): Promise<Truck | undefined> {
   );
 }
 
-export async function getEvents(sinceId = 0): Promise<FleetEvent[]> {
-  return api.getEvents(sinceId);
-}
-
 export async function getSimStatus(): Promise<SimStatus> {
-  return api.getSimStatus();
+  return api.simStatus();
 }
 
 export async function startSimulation(): Promise<SimStatus> {
-  return api.startSim();
+  return api.simStart();
 }
 
 export async function stopSimulation(): Promise<SimStatus> {
-  return api.stopSim();
+  return api.simStop();
 }
 
 export async function checkWeatherForLoad(load: Load): Promise<WeatherRouteResult> {

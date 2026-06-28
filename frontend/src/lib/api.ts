@@ -105,6 +105,19 @@ export interface FleetEvent {
   data: Record<string, unknown> | null;
 }
 
+export interface Incident {
+  id: number;
+  kind: string;
+  summary: string;
+  center_lat: number;
+  center_lng: number;
+  radius_mi: number;
+  severity: string;
+  eta_impact_minutes: number;
+  active: boolean;
+  created_at: string;
+}
+
 export interface SimStatus {
   running: boolean;
   tick_count: number;
@@ -202,9 +215,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(answers),
     }),
-  getEvents: (sinceId = 0) =>
-
-    fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}`),
+  getEvents: (sinceId = 0) => fetchJson<FleetEvent[]>(`/events?since_id=${sinceId}`),
+  getIncidents: (activeOnly = false) =>
+    fetchJson<Incident[]>(`/incidents${activeOnly ? "?active_only=true" : ""}`),
   simStatus: () => fetchJson<SimStatus>("/sim/status"),
   simTick: () => fetchJson<SimTickResult>("/sim/tick", { method: "POST" }),
   simStart: () => fetchJson<SimStatus>("/sim/start", { method: "POST" }),

@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from app.clock import utcnow
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Event, Load, LoadStatus, Truck, TruckStatus
+from app.models import Event, Incident, Load, LoadStatus, Truck, TruckStatus
 
 settings = get_settings()
 
@@ -35,6 +35,37 @@ def _haversine_mi(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     dlat, dlng = radians(lat2 - lat1), radians(lng2 - lng1)
     a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
     return 2 * r * asin(sqrt(a))
+
+
+def _detour_waypoint(
+    o_lat: float, o_lng: float, d_lat: float, d_lng: float, incidents: list[Incident]
+) -> tuple[float, float] | None:
+    """If the straight current→dest line crosses an incident, return a waypoint
+    that clears it (so the truck curves around the storm). Mirrors the frontend's
+    detourPath so the rig tracks the drawn route line. Returns None if clear."""
+    lat_ref = (o_lat + d_lat) / 2
+    k = cos(radians(lat_ref)) or 1.0
+    ax, ay = o_lng * k, o_lat
+    bx, by = d_lng * k, d_lat
+    abx, aby = bx - ax, by - ay
+    len2 = abx * abx + aby * aby or 1e-9
+    best: tuple[float, float] | None = None
+    best_pen = 0.0
+    for inc in incidents:
+        cx, cy = inc.center_lng * k, inc.center_lat
+        r_deg = (inc.radius_mi / 69.0) * 1.7  # clearance, in degrees
+        t = ((cx - ax) * abx + (cy - ay) * aby) / len2
+        t = max(0.12, min(0.88, t))
+        px, py = ax + t * abx, ay + t * aby
+        dx, dy = px - cx, py - cy
+        dist = sqrt(dx * dx + dy * dy)
+        pen = r_deg - dist
+        if pen > 0 and pen > best_pen:
+            ux = dx / dist if dist > 1e-6 else 1.0
+            uy = dy / dist if dist > 1e-6 else 0.0
+            best = (cy + uy * r_deg, (cx + ux * r_deg) / k)  # (lat, lng)
+            best_pen = pen
+    return best
 
 
 class Simulator:
@@ -72,6 +103,9 @@ class Simulator:
         delivered: list[str] = []
         step = self.step_miles
 
+        incidents = db.scalars(
+            select(Incident).where(Incident.active.is_(True))
+        ).all()
         trucks = db.scalars(
             select(Truck).where(Truck.status == TruckStatus.en_route)
         ).all()
@@ -106,10 +140,20 @@ class Simulator:
                 )
                 delivered.append(load.reference)
             else:
-                frac = step / remaining
-                truck.current_lat += (load.dest_lat - truck.current_lat) * frac
-                truck.current_lng += (load.dest_lng - truck.current_lng) * frac
-                hours = (remaining - step) / settings.sim_speed_mph
+                # Steer toward a detour waypoint if the path crosses a storm,
+                # otherwise straight at the destination.
+                waypoint = _detour_waypoint(
+                    truck.current_lat, truck.current_lng,
+                    load.dest_lat, load.dest_lng, incidents,
+                )
+                tgt_lat, tgt_lng = waypoint if waypoint else (load.dest_lat, load.dest_lng)
+                dist_to_tgt = _haversine_mi(
+                    truck.current_lat, truck.current_lng, tgt_lat, tgt_lng
+                ) or step
+                frac = min(1.0, step / dist_to_tgt)
+                truck.current_lat += (tgt_lat - truck.current_lat) * frac
+                truck.current_lng += (tgt_lng - truck.current_lng) * frac
+                hours = max(0.0, remaining - step) / settings.sim_speed_mph
                 load.eta = utcnow() + timedelta(hours=hours)
                 # Burn the driver's legal hours as the truck drives.
                 driven = settings.sim_minutes_per_tick / 60.0

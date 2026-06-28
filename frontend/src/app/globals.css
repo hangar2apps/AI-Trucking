@@ -38,3 +38,83 @@ body {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* --- Live fleet map (Leaflet) --- */
+.leaflet-container {
+  background: #0b1220;
+  font-family: inherit;
+}
+.truck-marker {
+  transition: transform 1.2s linear;
+}
+.leaflet-panning .truck-marker {
+  transition: none;
+}
+.truck-pin {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 28px;
+  border-radius: 8px;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 55%);
+}
+.truck-pin svg {
+  width: 20px;
+  height: 20px;
+}
+.truck-num {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  border: 1px solid #fff;
+  background: #0b1220;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.truck-pin.rerouting {
+  animation: reroutePulse 1.1s ease-in-out infinite;
+}
+@keyframes reroutePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 75%), 0 1px 5px rgb(0 0 0 / 55%);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(245 158 11 / 0%), 0 1px 5px rgb(0 0 0 / 55%);
+  }
+}
+.reroute-badge {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+.storm-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+  transform: translate(10px, -50%);
+}

@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     # Simulation: trucks advance toward their destination each tick.
     sim_interval_seconds: float = 3.0   # background loop cadence (real seconds)
     sim_speed_mph: float = 55.0
-    sim_minutes_per_tick: float = 6.0   # simulated minutes advanced per tick
+    sim_minutes_per_tick: float = 2.0   # simulated minutes advanced per tick
+                                        # (gentle crawl so loads stay in-transit
+                                        # through a demo instead of delivering in ~1 min)
 
     # Autonomous monitoring loop.
     monitor_interval_seconds: float = 60.0  # how often to assess every load

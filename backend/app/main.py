@@ -9,7 +9,6 @@ from app.monitor.service import monitor
 from app.routers import agent, events, fleet, loads, monitor as monitor_router, sim, survey, tools
 from app.sim import simulator
 from app.seed import seed
-from app.sim import simulator
 
 
 @asynccontextmanager
