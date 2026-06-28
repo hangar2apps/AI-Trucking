@@ -226,6 +226,7 @@ export const api = {
   monitorTick: () => fetchJson<MonitorTickResult>("/monitor/tick", { method: "POST" }),
   monitorStart: () => fetchJson<MonitorStatus>("/monitor/start", { method: "POST" }),
   monitorStop: () => fetchJson<MonitorStatus>("/monitor/stop", { method: "POST" }),
+  resetDemo: () => fetchJson<{ status: string; message: string }>("/demo/reset", { method: "POST" }),
 
   checkWeatherRoute: (route: {
     origin_lat: number;
