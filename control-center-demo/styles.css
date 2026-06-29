@@ -727,6 +727,27 @@ h3 {
   color: var(--muted);
 }
 
+.wx-source {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.wx-source::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(56, 211, 220, 0.18);
+}
+
 .wx-follow {
   width: 100%;
   margin-top: 11px;
@@ -816,6 +837,194 @@ h3 {
 }
 .hazard-label.ice .hazard-text {
   border-color: rgba(159, 214, 230, 0.6);
+}
+
+.hazard-label.storm .hazard-tag {
+  background: #b268e6;
+}
+.hazard-label.storm .hazard-text {
+  border-color: rgba(178, 104, 230, 0.6);
+}
+
+/* ---- Road incidents / car accidents ---- */
+.accident-marker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
+}
+
+.accident-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  border: 2px solid #2a0606;
+  box-shadow: 0 0 0 4px rgba(255, 77, 77, 0.26);
+  animation: gpsPulse 1.4s ease-in-out infinite;
+}
+
+.accident-tag {
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  background: rgba(6, 10, 13, 0.86);
+  border: 1px solid rgba(255, 77, 77, 0.5);
+  color: #ffd9d9;
+}
+
+.accident-marker.jam .accident-dot,
+.accident-marker.roadworks .accident-dot {
+  background: #f6b64a;
+  box-shadow: 0 0 0 4px rgba(246, 182, 74, 0.26);
+}
+
+.accident-marker.jam .accident-tag,
+.accident-marker.roadworks .accident-tag {
+  border-color: rgba(246, 182, 74, 0.5);
+  color: #ffe9c2;
+}
+
+/* ---- Clickable fleet truck icons ---- */
+.wx-fleet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
+}
+
+.wx-fleet-rig {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(4, 12, 16, 0.7);
+  border: 1.5px solid var(--ring, var(--cyan));
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+  transition: transform 120ms ease;
+}
+
+.wx-fleet:hover .wx-fleet-rig {
+  transform: scale(1.08);
+}
+
+.wx-fleet.optimized .wx-fleet-rig {
+  box-shadow: 0 0 0 2px rgba(56, 211, 220, 0.25), 0 0 16px rgba(56, 211, 220, 0.4);
+  animation: gpsPulse 1.6s ease-in-out infinite;
+}
+
+.wx-fleet.sev-severe .wx-fleet-rig {
+  border-color: #ff5d6c;
+}
+
+.wx-fleet.sev-watch .wx-fleet-rig {
+  border-color: #f6b64a;
+}
+
+.wx-fleet-tag {
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  color: #eaf6f8;
+  background: rgba(4, 12, 16, 0.85);
+  border: 1px solid var(--line-strong);
+}
+
+/* ---- Truck detail popups ---- */
+.truck-popup-wrap .leaflet-popup-content-wrapper {
+  background: rgba(7, 12, 15, 0.95);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+}
+
+.truck-popup-wrap .leaflet-popup-content {
+  margin: 11px 13px;
+}
+
+.truck-popup-wrap .leaflet-popup-tip {
+  background: rgba(7, 12, 15, 0.95);
+}
+
+.truck-popup-wrap a.leaflet-popup-close-button {
+  color: var(--muted);
+}
+
+.truck-popup {
+  width: 212px;
+}
+
+.truck-popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.truck-popup-head strong {
+  font-size: 0.9rem;
+  color: #f4f6fb;
+}
+
+.truck-popup-sev {
+  font-size: 0.56rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: rgba(85, 220, 122, 0.16);
+  color: #86e8a3;
+}
+
+.truck-popup-sev.watch {
+  background: rgba(246, 182, 74, 0.16);
+  color: #f6c87a;
+}
+
+.truck-popup-sev.severe {
+  background: rgba(255, 93, 108, 0.18);
+  color: #ff9aa6;
+}
+
+.truck-popup-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+}
+
+.truck-popup-grid span {
+  font-size: 0.64rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.truck-popup-grid b {
+  font-size: 0.74rem;
+  color: #eaf2f8;
+  text-align: right;
+}
+
+.truck-popup-note {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 0.66rem;
+  color: var(--cyan);
+  font-weight: 650;
 }
 
 .tracking-strip {
